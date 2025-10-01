@@ -95,6 +95,7 @@ interface GoalProgress {
 interface StudyLog {
   id: string;
   date: string;
+  createdAt: string; // ISO timestamp for ordering logs within the same day
   studyMinutes: number;
   videoMinutes: number;
   questionCount: number;
@@ -191,6 +192,10 @@ function HomeScreen() {
   // Study Log states
   const [showLogModal, setShowLogModal] = useState(false);
   const [todayStudyLog, setTodayStudyLog] = useState<StudyLog | null>(null);
+  const [allStudyLogs, setAllStudyLogs] = useState<StudyLog[]>([]);
+  const [showLogViewerModal, setShowLogViewerModal] = useState(false);
+  const [selectedDateLogs, setSelectedDateLogs] = useState<StudyLog[]>([]);
+  const [showAllLogsModal, setShowAllLogsModal] = useState(false);
   
   // Log Modal states  
   const [logStudyMinutes, setLogStudyMinutes] = useState(0);
@@ -226,23 +231,44 @@ function HomeScreen() {
   const [editSubjectName, setEditSubjectName] = useState('');
   const [editSelectedCourse, setEditSelectedCourse] = useState<Course>(defaultCourses[0]);
 
+  // Calculate cumulative data for today from all study logs
+  const getCumulativeTodayData = React.useCallback(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayLogs = allStudyLogs.filter(log => log.date === today);
+    
+    if (todayLogs.length === 0) return null;
+    
+    return todayLogs.reduce((acc, log) => ({
+      studyMinutes: acc.studyMinutes + log.studyMinutes,
+      videoMinutes: acc.videoMinutes + log.videoMinutes,
+      questionCount: acc.questionCount + log.questionCount,
+      studyTopics: [...new Set([...acc.studyTopics, ...log.studyTopics])]
+    }), {
+      studyMinutes: 0,
+      videoMinutes: 0,
+      questionCount: 0,
+      studyTopics: [] as string[]
+    });
+  }, [allStudyLogs]);
+
   const calculateGoalProgress = React.useCallback((goals: DailyGoal[]) => {
     if (goals.length === 0) {
       setGoalProgress({ achieved: 0, total: 0, percentage: 0 });
       return;
     }
 
+    const cumulativeData = getCumulativeTodayData();
     let totalAchieved = 0;
     let totalGoals = 0;
 
     goals.forEach(goal => {
       const { selectedTopics: goalTopics, studyTimeMinutes: goalStudyTime, questionCount: goalQuestions } = goal;
       
-      // Count individual goal achievements based on study logs instead of goal.progress
+      // Count individual goal achievements based on cumulative study data
       if (goalTopics.length > 0) {
         totalGoals++;
-        if (todayStudyLog) {
-          const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
+        if (cumulativeData) {
+          const studiedTopicsFromGoal = cumulativeData.studyTopics.filter(topicId => 
             goalTopics.includes(topicId)
           );
           if (studiedTopicsFromGoal.length >= goalTopics.length) totalAchieved++;
@@ -251,18 +277,95 @@ function HomeScreen() {
       
       if (goalQuestions > 0) {
         totalGoals++;
-        if (todayStudyLog && todayStudyLog.questionCount >= goalQuestions) totalAchieved++;
+        if (cumulativeData && cumulativeData.questionCount >= goalQuestions) totalAchieved++;
       }
       
       if (goalStudyTime > 0) {
         totalGoals++;
-        if (todayStudyLog && todayStudyLog.studyMinutes >= goalStudyTime) totalAchieved++;
+        if (cumulativeData && cumulativeData.studyMinutes >= goalStudyTime) totalAchieved++;
       }
     });
 
     const percentage = totalGoals > 0 ? Math.round((totalAchieved / totalGoals) * 100) : 0;
     setGoalProgress({ achieved: totalAchieved, total: totalGoals, percentage });
-  }, [todayStudyLog]);
+  }, [getCumulativeTodayData]);
+
+  // Update daily goal progress based on study logs
+  const updateDailyGoalProgress = React.useCallback(async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const goalsData = await AsyncStorage.getItem('dailyGoals');
+      
+      if (!goalsData || !todayStudyLog) return;
+      
+      const allGoals: DailyGoal[] = JSON.parse(goalsData);
+      let needsUpdate = false;
+      
+      // Update today's goals with actual progress from study logs
+      const updatedGoals = allGoals.map(goal => {
+        if (goal.date !== today) return goal;
+        
+        // Calculate actual progress from all today's logs
+        const todayLogs = allStudyLogs.filter(log => log.date === today);
+        
+        let totalStudyTime = 0;
+        let totalQuestions = 0;
+        const completedTopics = new Set<string>();
+        
+        // Aggregate all today's study sessions
+        todayLogs.forEach(log => {
+          totalStudyTime += log.studyMinutes;
+          totalQuestions += log.questionCount;
+          log.studyTopics.forEach(topicId => completedTopics.add(topicId));
+          // Also include custom questions
+          log.customQuestions.forEach(cq => {
+            totalQuestions += cq.count;
+          });
+        });
+        
+        // Check if goal topics are completed
+        const goalCompletedTopics = goal.selectedTopics.filter(topicId => 
+          completedTopics.has(topicId)
+        );
+        
+        // Create updated progress
+        const newProgress = {
+          completedTopics: goalCompletedTopics,
+          studyTimeSpent: totalStudyTime,
+          questionsAnswered: totalQuestions
+        };
+        
+        // Check if goal is completed
+        const topicsCompleted = goalCompletedTopics.length >= goal.selectedTopics.length;
+        const timeCompleted = totalStudyTime >= goal.studyTimeMinutes;
+        const questionsCompleted = totalQuestions >= goal.questionCount;
+        const isCompleted = topicsCompleted && timeCompleted && questionsCompleted;
+        
+        // Update if progress or completion status changed
+        if (JSON.stringify(goal.progress) !== JSON.stringify(newProgress) || goal.completed !== isCompleted) {
+          needsUpdate = true;
+          return {
+            ...goal,
+            progress: newProgress,
+            completed: isCompleted
+          };
+        }
+        
+        return goal;
+      });
+      
+      // Save updated goals if there were changes
+      if (needsUpdate) {
+        await AsyncStorage.setItem('dailyGoals', JSON.stringify(updatedGoals));
+        // Update today's goals directly to reflect changes
+        const todayDate = new Date().toISOString().split('T')[0];
+        const todayUpdatedGoals = updatedGoals.filter(goal => goal.date === todayDate);
+        setTodayGoals(todayUpdatedGoals);
+      }
+    } catch (error) {
+      console.log('Error updating daily goal progress:', error);
+    }
+  }, [todayStudyLog, allStudyLogs]);
 
   // Load today's goals
   const loadTodayGoals = React.useCallback(async () => {
@@ -291,6 +394,13 @@ function HomeScreen() {
     }
   }, [todayGoals, todayStudyLog, calculateGoalProgress]);
 
+  // Effect to update daily goal progress when study logs change
+  useEffect(() => {
+    if (todayStudyLog || allStudyLogs.length > 0) {
+      updateDailyGoalProgress();
+    }
+  }, [todayStudyLog, allStudyLogs, updateDailyGoalProgress]);
+
   // Get today's subject goal
   const getTodaySubjectGoal = () => {
     if (!todaySubject) return null;
@@ -309,29 +419,30 @@ function HomeScreen() {
     if (!todayCourse || todayGoals.length === 0) return 0;
 
     const todayGoal = todayGoals[0];
-    if (!todayStudyLog) return 0;
+    const cumulativeData = getCumulativeTodayData();
+    if (!cumulativeData) return 0;
 
-    // Calculate progress based on daily goal vs actual study log
+    // Calculate progress based on daily goal vs cumulative study data
     let progressScore = 0;
     let totalScore = 0;
 
     // Study time progress
     if (todayGoal.studyTimeMinutes > 0) {
-      const studyProgress = Math.min(todayStudyLog.studyMinutes / todayGoal.studyTimeMinutes, 1);
+      const studyProgress = Math.min(cumulativeData.studyMinutes / todayGoal.studyTimeMinutes, 1);
       progressScore += studyProgress * 33.33; // 1/3 of total
       totalScore += 33.33;
     }
 
     // Questions progress
     if (todayGoal.questionCount > 0) {
-      const questionProgress = Math.min(todayStudyLog.questionCount / todayGoal.questionCount, 1);
+      const questionProgress = Math.min(cumulativeData.questionCount / todayGoal.questionCount, 1);
       progressScore += questionProgress * 33.33; // 1/3 of total
       totalScore += 33.33;
     }
 
     // Topics progress (study topics)
     if (todayGoal.selectedTopics.length > 0) {
-      const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
+      const studiedTopicsFromGoal = cumulativeData.studyTopics.filter(topicId => 
         todayGoal.selectedTopics.includes(topicId)
       );
       const topicsProgress = Math.min(studiedTopicsFromGoal.length / todayGoal.selectedTopics.length, 1);
@@ -340,38 +451,39 @@ function HomeScreen() {
     }
 
     return totalScore > 0 ? Math.round(progressScore) : 0;
-  }, [todayGoals, todayStudyLog, getCurrentCourse]);
+  }, [todayGoals, getCumulativeTodayData, getCurrentCourse]);
 
   // Get today's subject course progress based on study logs
   const getTodaySubjectProgress = React.useCallback(() => {
     if (!todaySubject) return { percentage: 0, completed: 0, total: 0 };
     
-    // Use the new function to calculate progress based on daily goals and study logs
+    // Use the new function to calculate progress based on daily goals and cumulative study data
     const percentage = calculateTodayCourseProgress();
     
-    // For display purposes, calculate completed vs total from daily goals and study logs
+    // For display purposes, calculate completed vs total from daily goals and cumulative study data
     if (todayGoals.length > 0) {
       const todayGoal = todayGoals[0];
+      const cumulativeData = getCumulativeTodayData();
       let completed = 0;
       let total = 0;
 
       // Count study time completion
       if (todayGoal.studyTimeMinutes > 0) {
         total++;
-        if (todayStudyLog && todayStudyLog.studyMinutes >= todayGoal.studyTimeMinutes) completed++;
+        if (cumulativeData && cumulativeData.studyMinutes >= todayGoal.studyTimeMinutes) completed++;
       }
 
       // Count questions completion
       if (todayGoal.questionCount > 0) {
         total++;
-        if (todayStudyLog && todayStudyLog.questionCount >= todayGoal.questionCount) completed++;
+        if (cumulativeData && cumulativeData.questionCount >= todayGoal.questionCount) completed++;
       }
 
       // Count topics completion
       if (todayGoal.selectedTopics.length > 0) {
         total++;
-        if (todayStudyLog) {
-          const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
+        if (cumulativeData) {
+          const studiedTopicsFromGoal = cumulativeData.studyTopics.filter(topicId => 
             todayGoal.selectedTopics.includes(topicId)
           );
           if (studiedTopicsFromGoal.length >= todayGoal.selectedTopics.length) completed++;
@@ -382,7 +494,7 @@ function HomeScreen() {
     }
     
     return { percentage: 0, completed: 0, total: 0 };
-  }, [todaySubject, todayGoals, todayStudyLog, calculateTodayCourseProgress]);
+  }, [todaySubject, todayGoals, getCumulativeTodayData, calculateTodayCourseProgress]);
 
   // Create goal for today's subject
   const createTodayGoal = () => {
@@ -477,16 +589,18 @@ function HomeScreen() {
   const saveStudyLog = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
+      const now = new Date().toISOString();
       const logsData = await AsyncStorage.getItem('studyLogs');
       let logs: StudyLog[] = logsData ? JSON.parse(logsData) : [];
       
-      // Remove existing log for today if any
-      logs = logs.filter(log => log.date !== today);
+      // Don't remove existing logs - allow multiple logs per day
+      // logs = logs.filter(log => log.date !== today);
       
-      // Create new log
+      // Create new log with timestamp
       const newLog: StudyLog = {
         id: Date.now().toString(),
         date: today,
+        createdAt: now,
         studyMinutes: logStudyMinutes,
         videoMinutes: logVideoMinutes,
         questionCount: logQuestionCount,
@@ -499,7 +613,10 @@ function HomeScreen() {
       
       logs.push(newLog);
       await AsyncStorage.setItem('studyLogs', JSON.stringify(logs));
+      
+      // Update today's log to show the latest one in the summary
       setTodayStudyLog(newLog);
+      setAllStudyLogs(logs);
       setShowLogModal(false);
       
       // Reset form
@@ -525,6 +642,57 @@ function HomeScreen() {
       console.log('Error saving study log:', error);
       Alert.alert('❌', 'Kayıt sırasında hata oluştu');
     }
+  };
+
+  // Load all study logs
+  const loadAllStudyLogs = async () => {
+    try {
+      const logsData = await AsyncStorage.getItem('studyLogs');
+      if (logsData) {
+        const logs: StudyLog[] = JSON.parse(logsData);
+        setAllStudyLogs(logs);
+        return logs;
+      }
+      return [];
+    } catch (error) {
+      console.log('Error loading study logs:', error);
+      return [];
+    }
+  };
+
+  // Delete individual study log
+  const deleteStudyLog = async (logId: string) => {
+    try {
+      const logsData = await AsyncStorage.getItem('studyLogs');
+      if (logsData) {
+        let logs: StudyLog[] = JSON.parse(logsData);
+        logs = logs.filter(log => log.id !== logId);
+        await AsyncStorage.setItem('studyLogs', JSON.stringify(logs));
+        setAllStudyLogs(logs);
+        
+        // Update today's log if deleted
+        const today = new Date().toISOString().split('T')[0];
+        const todayLog = logs.find(log => log.date === today);
+        setTodayStudyLog(todayLog || null);
+        
+        // Refresh progress
+        loadProgress();
+        
+        Alert.alert('✅', 'Çalışma kaydı silindi!');
+      }
+    } catch (error) {
+      console.log('Error deleting study log:', error);
+      Alert.alert('❌', 'Silme işleminde hata oluştu');
+    }
+  };
+
+  // View logs for specific date
+  const viewDayLogs = (date: string) => {
+    const logs = allStudyLogs.filter(log => log.date === date);
+    // Sort by creation time (newest first)
+    logs.sort((a, b) => new Date(b.createdAt || b.id).getTime() - new Date(a.createdAt || a.id).getTime());
+    setSelectedDateLogs(logs);
+    setShowLogViewerModal(true);
   };
 
   // Schedule editing functions
@@ -588,6 +756,34 @@ function HomeScreen() {
   };
 
   // Load progress data
+  // Shared function to load study logs
+  const loadStudyLogs = React.useCallback(async () => {
+    try {
+      const logsData = await AsyncStorage.getItem('studyLogs');
+      if (logsData) {
+        const logs: StudyLog[] = JSON.parse(logsData);
+        setAllStudyLogs(logs);
+        
+        // Get today's logs
+        const today = new Date().toISOString().split('T')[0];
+        const todayLogs = logs.filter(log => log.date === today);
+        if (todayLogs.length > 0) {
+          // Sort by createdAt (newest first) and get the latest
+          todayLogs.sort((a, b) => new Date(b.createdAt || b.id).getTime() - new Date(a.createdAt || a.id).getTime());
+          setTodayStudyLog(todayLogs[0]);
+        } else {
+          setTodayStudyLog(null);
+        }
+        
+        return logs;
+      }
+      return [];
+    } catch (error) {
+      console.log('Error loading study logs:', error);
+      return [];
+    }
+  }, []);
+
   const loadProgress = React.useCallback(async () => {
     try {
       // Load course data
@@ -599,20 +795,11 @@ function HomeScreen() {
         setCourses(defaultCourses);
       }
 
-      // Load today's study log to calculate actual progress
-      const today = new Date().toISOString().split('T')[0];
-      const logsData = await AsyncStorage.getItem('studyLogs');
-      let todayLog: StudyLog | null = null;
-      
-      if (logsData) {
-        const logs: StudyLog[] = JSON.parse(logsData);
-        todayLog = logs.find(log => log.date === today) || null;
-        setTodayStudyLog(todayLog);
-      }
+      // Load study logs using shared function
+      const logs = await loadStudyLogs();
 
       // Calculate stats from study logs instead of checkboxes
-      if (logsData) {
-        const logs: StudyLog[] = JSON.parse(logsData);
+      if (logs.length > 0) {
         let totalStudyMinutes = 0;
         let totalVideoMinutes = 0;
         let totalQuestions = 0;
@@ -642,7 +829,7 @@ function HomeScreen() {
     } catch (error) {
       console.log('Progress yüklenemedi:', error);
     }
-  }, []);
+  }, [loadStudyLogs]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -779,21 +966,40 @@ function HomeScreen() {
 
             // If goal exists, show progress
             if (todayGoal) {
-              // Calculate actual progress from study logs
+              // Calculate cumulative progress from all today's logs
               let studyProgress = 0;
               let questionProgress = 0;
               let topicsProgress = 0;
 
-              if (todayStudyLog) {
+              // Get all today's logs for cumulative progress
+              const today = new Date().toISOString().split('T')[0];
+              const todayLogs = allStudyLogs.filter(log => log.date === today);
+              
+              if (todayLogs.length > 0) {
+                // Calculate cumulative study time and questions
+                let totalStudyTime = 0;
+                let totalQuestions = 0;
+                const studiedTopicsSet = new Set<string>();
+                
+                todayLogs.forEach(log => {
+                  totalStudyTime += log.studyMinutes;
+                  totalQuestions += log.questionCount;
+                  log.studyTopics.forEach(topicId => studiedTopicsSet.add(topicId));
+                  // Include custom questions
+                  log.customQuestions.forEach(cq => {
+                    totalQuestions += cq.count;
+                  });
+                });
+
                 studyProgress = todayGoal.studyTimeMinutes > 0 ? 
-                  Math.min(todayStudyLog.studyMinutes / todayGoal.studyTimeMinutes, 1) : 0;
+                  Math.min(totalStudyTime / todayGoal.studyTimeMinutes, 1) : 0;
                 
                 questionProgress = todayGoal.questionCount > 0 ? 
-                  Math.min(todayStudyLog.questionCount / todayGoal.questionCount, 1) : 0;
+                  Math.min(totalQuestions / todayGoal.questionCount, 1) : 0;
                 
                 if (todayGoal.selectedTopics.length > 0) {
-                  const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
-                    todayGoal.selectedTopics.includes(topicId)
+                  const studiedTopicsFromGoal = todayGoal.selectedTopics.filter(topicId => 
+                    studiedTopicsSet.has(topicId)
                   );
                   topicsProgress = Math.min(studiedTopicsFromGoal.length / todayGoal.selectedTopics.length, 1);
                 }
@@ -836,7 +1042,8 @@ function HomeScreen() {
                     <View style={styles.selectedTopicsContainer}>
                       {todayGoal.selectedTopics.map((topicId) => {
                         const topic = courses.flatMap(c => c.topics).find(t => t.id === topicId);
-                        const isStudied = todayStudyLog?.studyTopics.includes(topicId) || false;
+                        // Check if topic is studied in any of today's logs
+                        const isStudied = todayLogs.some(log => log.studyTopics.includes(topicId));
                         return topic ? (
                           <View key={topicId} style={[
                             styles.selectedTopicChip, 
@@ -871,9 +1078,9 @@ function HomeScreen() {
                         style={styles.progressIcon}
                       />
                       <Text style={styles.progressValue}>
-                        {todayStudyLog?.studyTopics.filter(topicId => 
-                          todayGoal.selectedTopics.includes(topicId)
-                        ).length || 0}/{todayGoal.selectedTopics.length}
+                        {todayGoal.selectedTopics.filter(topicId => 
+                          todayLogs.some(log => log.studyTopics.includes(topicId))
+                        ).length}/{todayGoal.selectedTopics.length}
                       </Text>
                       <Text style={styles.progressTarget}>Konu</Text>
                     </View>
@@ -886,7 +1093,7 @@ function HomeScreen() {
                         style={styles.progressIcon}
                       />
                       <Text style={styles.progressValue}>
-                        {todayStudyLog?.questionCount || 0}/{todayGoal.questionCount}
+                        {todayLogs.reduce((total, log) => total + log.questionCount + log.customQuestions.reduce((cqTotal, cq) => cqTotal + cq.count, 0), 0)}/{todayGoal.questionCount}
                       </Text>
                       <Text style={styles.progressTarget}>Soru</Text>
                     </View>
@@ -899,7 +1106,7 @@ function HomeScreen() {
                         style={styles.progressIcon}
                       />
                       <Text style={styles.progressValue}>
-                        {todayStudyLog?.studyMinutes || 0}/{todayGoal.studyTimeMinutes}
+                        {todayLogs.reduce((total, log) => total + log.studyMinutes, 0)}/{todayGoal.studyTimeMinutes}
                       </Text>
                       <Text style={styles.progressTarget}>Dakika</Text>
                     </View>
@@ -928,31 +1135,66 @@ function HomeScreen() {
             <Text style={styles.logButtonText}>Çalışma Kaydet</Text>
           </TouchableOpacity>
           
-          {todayStudyLog && (
-            <View style={[styles.todayLogSummary, { backgroundColor: colors.card }]}>
-              <Text style={[styles.logSummaryTitle, { color: colors.text }]}>Bugünün Özeti</Text>
-              <View style={styles.logSummaryStats}>
-                <View style={styles.logStat}>
-                  <Icon name="clock" size={16} color={colors.primary} />
-                  <Text style={[styles.logStatText, { color: colors.textLight }]}>
-                    {todayStudyLog.studyMinutes}dk Çalışma
-                  </Text>
+          {/* Today's Summary with cumulative data */}
+          {(() => {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const todayLogs = allStudyLogs.filter(log => log.date === currentDate);
+            
+            if (todayLogs.length === 0) return null;
+            
+            // Calculate cumulative data for today
+            const cumulativeData = todayLogs.reduce((acc, log) => ({
+              studyMinutes: acc.studyMinutes + log.studyMinutes,
+              videoMinutes: acc.videoMinutes + log.videoMinutes,
+              questionCount: acc.questionCount + log.questionCount,
+              studyTopics: [...new Set([...acc.studyTopics, ...log.studyTopics])]
+            }), {
+              studyMinutes: 0,
+              videoMinutes: 0,
+              questionCount: 0,
+              studyTopics: [] as string[]
+            });
+            
+            return (
+              <TouchableOpacity 
+                style={[styles.todayLogSummary, { backgroundColor: colors.card }]}
+                onPress={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  viewDayLogs(today);
+                }}
+              >
+                <View style={styles.logSummaryHeader}>
+                  <Text style={[styles.logSummaryTitle, { color: colors.text }]}>Bugünün Özeti</Text>
+                  <View style={styles.sessionCountBadge}>
+                    <Text style={[styles.sessionCountText, { color: colors.textMuted }]}>
+                      {todayLogs.length} seans
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={16} color={colors.textMuted} />
                 </View>
-                <View style={styles.logStat}>
-                  <Icon name="video" size={16} color={colors.secondary} />
-                  <Text style={[styles.logStatText, { color: colors.textLight }]}>
-                    {todayStudyLog.videoMinutes}dk Video
-                  </Text>
+                <View style={styles.logSummaryStats}>
+                  <View style={styles.logStat}>
+                    <Icon name="clock" size={16} color={colors.primary} />
+                    <Text style={[styles.logStatText, { color: colors.textLight }]}>
+                      {cumulativeData.studyMinutes}dk Çalışma
+                    </Text>
+                  </View>
+                  <View style={styles.logStat}>
+                    <Icon name="video" size={16} color={colors.secondary} />
+                    <Text style={[styles.logStatText, { color: colors.textLight }]}>
+                      {cumulativeData.videoMinutes}dk Video
+                    </Text>
+                  </View>
+                  <View style={styles.logStat}>
+                    <Icon name="help-circle" size={16} color={colors.success} />
+                    <Text style={[styles.logStatText, { color: colors.textLight }]}>
+                      {cumulativeData.questionCount} Soru
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.logStat}>
-                  <Icon name="help-circle" size={16} color={colors.success} />
-                  <Text style={[styles.logStatText, { color: colors.textLight }]}>
-                    {todayStudyLog.questionCount} Soru
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
+              </TouchableOpacity>
+            );
+          })()}
         </View>
       </ScrollView>
 
@@ -1620,6 +1862,261 @@ function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Study Logs Viewer Modal */}
+      <Modal
+        visible={showLogViewerModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLogViewerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                📊 Günlük Çalışma Kayıtları
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowLogViewerModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {selectedDateLogs.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Icon name="calendar-remove" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
+                    Bu tarih için çalışma kaydı bulunamadı
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={[styles.logViewHeaderText, { color: colors.textLight }]}>
+                    {selectedDateLogs.length} kayıt bulundu
+                  </Text>
+                  {selectedDateLogs.map((log, index) => (
+                    <View key={log.id} style={[styles.logViewCard, { backgroundColor: colors.backgroundLight }]}>
+                      <View style={[styles.logViewIndexContainer, { backgroundColor: colors.primary }]}>
+                        <Text style={[styles.logViewIndexText]}>
+                          Kayıt #{selectedDateLogs.length - index}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.logViewHeader}>
+                        <View>
+                          <Text style={[styles.logViewDate, { color: colors.text }]}>
+                            {log.date}
+                          </Text>
+                          <Text style={[styles.logViewTime, { color: colors.textMuted }]}>
+                            {log.createdAt ? 
+                              new Date(log.createdAt).toLocaleTimeString('tr-TR', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              }) : 
+                              'Saat bilgisi yok'
+                            }
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            Alert.alert(
+                              'Kaydı Sil',
+                              'Bu çalışma kaydını silmek istediğinizden emin misiniz?',
+                              [
+                                { text: 'İptal', style: 'cancel' },
+                                { 
+                                  text: 'Sil', 
+                                  style: 'destructive',
+                                  onPress: () => {
+                                    deleteStudyLog(log.id);
+                                    setShowLogViewerModal(false);
+                                  }
+                                }
+                              ]
+                            );
+                          }}
+                          style={styles.deleteLogButton}
+                        >
+                          <Icon name="delete" size={18} color={colors.danger} />
+                        </TouchableOpacity>
+                      </View>
+                    
+                    <View style={[styles.logViewStats, { backgroundColor: colors.background }]}>
+                      <View style={styles.logViewStat}>
+                        <View style={[styles.logViewStatIcon, { backgroundColor: colors.primary + '20' }]}>
+                          <Icon name="clock" size={16} color={colors.primary} />
+                        </View>
+                        <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                          {log.studyMinutes}
+                        </Text>
+                        <Text style={[styles.logViewStatLabel, { color: colors.textMuted }]}>
+                          dk çalışma
+                        </Text>
+                      </View>
+                      <View style={styles.logViewStat}>
+                        <View style={[styles.logViewStatIcon, { backgroundColor: colors.secondary + '20' }]}>
+                          <Icon name="video" size={16} color={colors.secondary} />
+                        </View>
+                        <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                          {log.videoMinutes}
+                        </Text>
+                        <Text style={[styles.logViewStatLabel, { color: colors.textMuted }]}>
+                          dk video
+                        </Text>
+                      </View>
+                      <View style={styles.logViewStat}>
+                        <View style={[styles.logViewStatIcon, { backgroundColor: colors.success + '20' }]}>
+                          <Icon name="help-circle" size={16} color={colors.success} />
+                        </View>
+                        <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                          {log.questionCount}
+                        </Text>
+                        <Text style={[styles.logViewStatLabel, { color: colors.textMuted }]}>
+                          soru
+                        </Text>
+                      </View>
+                    </View>
+
+                    {(log.studyTopics.length > 0 || log.customStudyTopics.length > 0) && (
+                      <View style={[styles.logViewTopics, { borderTopColor: colors.border }]}>
+                        <Text style={[styles.logViewTopicsTitle, { color: colors.text }]}>
+                          📚 Çalışılan Konular
+                        </Text>
+                        <View style={styles.logViewTopicsRow}>
+                          {log.studyTopics.map((topicId, topicIndex) => {
+                            const topic = courses.flatMap(c => c.topics).find(t => t.id === topicId);
+                            return topic ? (
+                              <Text key={topicIndex} style={[styles.logViewTopicText, { backgroundColor: colors.primary + '15', color: colors.primary }]}>
+                                {topic.name}
+                              </Text>
+                            ) : null;
+                          })}
+                          {log.customStudyTopics.map((customTopic, customIndex) => (
+                            <Text key={`custom-${customIndex}`} style={[styles.logViewTopicText, { backgroundColor: colors.secondary + '15', color: colors.secondary }]}>
+                              {customTopic.topicName}
+                            </Text>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* All Study Logs Modal */}
+      <Modal
+        visible={showAllLogsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAllLogsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                📈 Tüm Çalışma Kayıtları
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowAllLogsModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {allStudyLogs.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Icon name="calendar-remove" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
+                    Henüz çalışma kaydı bulunamadı
+                  </Text>
+                </View>
+              ) : (
+                [...allStudyLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .map((log) => (
+                  <View key={log.id} style={[styles.logViewCard, { backgroundColor: colors.backgroundLight }]}>
+                    <View style={styles.logViewHeader}>
+                      <Text style={[styles.logViewDate, { color: colors.text }]}>
+                        {new Date(log.date).toLocaleDateString('tr-TR')}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Alert.alert(
+                            'Kaydı Sil',
+                            'Bu çalışma kaydını silmek istediğinizden emin misiniz?',
+                            [
+                              { text: 'İptal', style: 'cancel' },
+                              { 
+                                text: 'Sil', 
+                                style: 'destructive',
+                                onPress: () => deleteStudyLog(log.id)
+                              }
+                            ]
+                          );
+                        }}
+                        style={[styles.deleteLogButton, { backgroundColor: colors.danger }]}
+                      >
+                        <Icon name="delete" size={16} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <View style={styles.logViewStats}>
+                      <View style={styles.logViewStat}>
+                        <Icon name="clock" size={16} color={colors.primary} />
+                        <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                          {log.studyMinutes} dk çalışma
+                        </Text>
+                      </View>
+                      <View style={styles.logViewStat}>
+                        <Icon name="video" size={16} color={colors.secondary} />
+                        <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                          {log.videoMinutes} dk video
+                        </Text>
+                      </View>
+                      <View style={styles.logViewStat}>
+                        <Icon name="help-circle" size={16} color={colors.success} />
+                        <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                          {log.questionCount} soru
+                        </Text>
+                      </View>
+                    </View>
+
+                    {(log.studyTopics.length > 0 || log.customStudyTopics.length > 0) && (
+                      <View style={styles.logViewTopics}>
+                        <Text style={[styles.logViewTopicsTitle, { color: colors.textLight }]}>
+                          Çalışılan Konular:
+                        </Text>
+                        {log.studyTopics.map((topicId, index) => {
+                          const topic = courses.flatMap(c => c.topics).find(t => t.id === topicId);
+                          return topic ? (
+                            <Text key={index} style={[styles.logViewTopicText, { color: colors.text }]}>
+                              • {topic.name}
+                            </Text>
+                          ) : null;
+                        })}
+                        {log.customStudyTopics.map((customTopic, index) => (
+                          <Text key={`custom-${index}`} style={[styles.logViewTopicText, { color: colors.text }]}>
+                            • {customTopic.topicName}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))
+              )}
             </ScrollView>
           </View>
         </View>
@@ -2493,6 +2990,14 @@ function ReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [studyLogs, setStudyLogs] = useState<StudyLog[]>([]);
   const [_courses, setCourses] = useState<Course[]>(defaultCourses);
+  const [showAllLogsModal, setShowAllLogsModal] = useState(false);
+
+  // Refresh logs when screen comes into focus to sync with home screen
+  useFocusEffect(
+    React.useCallback(() => {
+      loadReportData();
+    }, [])
+  );
 
   const loadReportData = async () => {
     try {
@@ -2628,6 +3133,24 @@ function ReportsScreen() {
       }
     } catch (error) {
       console.log('Error loading report data:', error);
+    }
+  };
+
+  // Delete study log function for reports screen
+  const deleteStudyLogInReports = async (logId: string) => {
+    try {
+      const logsData = await AsyncStorage.getItem('studyLogs');
+      if (logsData) {
+        let logs: StudyLog[] = JSON.parse(logsData);
+        logs = logs.filter(log => log.id !== logId);
+        await AsyncStorage.setItem('studyLogs', JSON.stringify(logs));
+        setStudyLogs(logs);
+        loadReportData(); // Refresh report data
+        Alert.alert('✅', 'Çalışma kaydı silindi!');
+      }
+    } catch (error) {
+      console.log('Error deleting study log:', error);
+      Alert.alert('❌', 'Silme işleminde hata oluştu');
     }
   };
 
@@ -2767,8 +3290,10 @@ function ReportsScreen() {
           <View style={[styles.modernStatCard, { backgroundColor: colors.card }]}>
             <View style={styles.reportRow}>
               <Icon name="calendar-month" size={20} color={colors.info} />
-              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Günlük Log</Text>
-              <Text style={[styles.reportValue, { color: colors.text }]}>{studyLogs.length}</Text>
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Çalışma Günü</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>
+                {new Set(studyLogs.map(log => log.date)).size}
+              </Text>
             </View>
             <View style={styles.reportRow}>
               <Icon name="book-multiple" size={20} color={colors.success} />
@@ -2824,7 +3349,193 @@ function ReportsScreen() {
           </View>
         </View>
 
+        {/* Study Logs Access */}
+        <View style={[styles.modernStatsSection, { backgroundColor: colors.background }]}>
+          <Text style={[styles.homeSectionTitle, { color: colors.text }]}>Çalışma Kayıtları</Text>
+          <View style={[styles.modernStatCard, { backgroundColor: colors.card }]}>
+            <TouchableOpacity
+              style={styles.reportRow}
+              onPress={() => setShowAllLogsModal(true)}
+            >
+              <Icon name="database" size={20} color={colors.info} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Tüm Kayıtları Görüntüle</Text>
+              <Icon name="chevron-right" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+            
+            <View style={styles.reportRow}>
+              <Icon name="calendar-check" size={20} color={colors.success} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Çalışma Günü</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>
+                {new Set(studyLogs.map(log => log.date)).size}
+              </Text>
+            </View>
+            
+            <View style={styles.reportRow}>
+              <Icon name="file-document-multiple" size={20} color={colors.secondary} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Çalışma Seansı</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{studyLogs.length}</Text>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.reportRow}
+              onPress={() => {
+                Alert.alert(
+                  'Kayıt Sıfırlama',
+                  'Tüm çalışma kayıtlarını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+                  [
+                    { text: 'İptal', style: 'cancel' },
+                    {
+                      text: 'Tüm Kayıtları Sil',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await AsyncStorage.removeItem('studyLogs');
+                          setStudyLogs([]);
+                          loadReportData();
+                          Alert.alert('✅', 'Tüm çalışma kayıtları silindi!');
+                        } catch (error) {
+                          Alert.alert('❌', 'Silme işleminde hata oluştu');
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Icon name="trash-can" size={20} color={colors.danger} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Kayıt Sıfırlama</Text>
+              <Icon name="chevron-right" size={20} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
       </ScrollView>
+
+      {/* All Logs Modal */}
+      <Modal
+        visible={showAllLogsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAllLogsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Tüm Çalışma Kayıtları
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAllLogsModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalBody}>
+              {studyLogs.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Icon name="book-open-variant" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
+                    Henüz hiç çalışma kaydınız yok
+                  </Text>
+                  <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
+                    Ana sayfadan çalışma kaydı eklemeye başlayın
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={[styles.logViewHeaderText, { color: colors.textLight }]}>
+                    {studyLogs.length} kayıt bulundu
+                  </Text>
+                  {studyLogs.map((log, index) => (
+                    <View key={log.id} style={[styles.logViewCard, { backgroundColor: colors.backgroundLight }]}>
+                      <View style={[styles.logViewIndexContainer, { backgroundColor: colors.primary }]}>
+                        <Text style={[styles.logViewIndexText]}>
+                          Kayıt #{studyLogs.length - index}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.logViewHeader}>
+                        <View>
+                          <Text style={[styles.logViewDate, { color: colors.text }]}>
+                            {log.date}
+                          </Text>
+                          {log.createdAt && (
+                            <Text style={[styles.logViewTime, { color: colors.textMuted }]}>
+                              {new Date(log.createdAt).toLocaleTimeString('tr-TR', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => deleteStudyLogInReports(log.id)}
+                          style={styles.deleteLogButton}
+                        >
+                          <Icon name="delete" size={18} color={colors.danger} />
+                        </TouchableOpacity>
+                      </View>
+                      
+                      <View style={[styles.logViewStats, { backgroundColor: colors.background }]}>
+                        <View style={styles.logViewStat}>
+                          <View style={[styles.logViewStatIcon, { backgroundColor: colors.primary + '20' }]}>
+                            <Icon name="clock" size={16} color={colors.primary} />
+                          </View>
+                          <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                            {log.studyMinutes + log.videoMinutes}
+                          </Text>
+                          <Text style={[styles.logViewStatLabel, { color: colors.textMuted }]}>
+                            dk toplam
+                          </Text>
+                        </View>
+                        <View style={styles.logViewStat}>
+                          <View style={[styles.logViewStatIcon, { backgroundColor: colors.success + '20' }]}>
+                            <Icon name="help-circle" size={16} color={colors.success} />
+                          </View>
+                          <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                            {log.questionCount}
+                          </Text>
+                          <Text style={[styles.logViewStatLabel, { color: colors.textMuted }]}>
+                            soru
+                          </Text>
+                        </View>
+                        <View style={styles.logViewStat}>
+                          <View style={[styles.logViewStatIcon, { backgroundColor: colors.secondary + '20' }]}>
+                            <Icon name="video" size={16} color={colors.secondary} />
+                          </View>
+                          <Text style={[styles.logViewStatText, { color: colors.text }]}>
+                            {log.videoMinutes}
+                          </Text>
+                          <Text style={[styles.logViewStatLabel, { color: colors.textMuted }]}>
+                            dk video
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {(log.studyTopics && log.studyTopics.length > 0) && (
+                        <View style={[styles.logViewTopics, { borderTopColor: colors.border }]}>
+                          <Text style={[styles.logViewTopicsTitle, { color: colors.text }]}>
+                            📚 Çalışılan Konular
+                          </Text>
+                          <View style={styles.logViewTopicsRow}>
+                            {log.studyTopics.map((topic: string, topicIndex: number) => (
+                              <Text key={topicIndex} style={[styles.logViewTopicText, { backgroundColor: colors.primary + '15', color: colors.primary }]}>
+                                {topic}
+                              </Text>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2854,6 +3565,8 @@ function AgendaScreen() {
   const [goalTopics, setGoalTopics] = useState<string[]>([]);
   const [goalStudyTime, setGoalStudyTime] = useState(60);
   const [goalQuestions, setGoalQuestions] = useState(10);
+  const [goalStudyTimeInput, setGoalStudyTimeInput] = useState('60');
+  const [goalQuestionsInput, setGoalQuestionsInput] = useState('10');
 
   // Initialize default agenda
   const createDefaultAgenda = (): DayAgenda[] => {
@@ -3069,14 +3782,8 @@ function AgendaScreen() {
 
   // Create goal for course
   const createGoalForCourse = async (course: DayCourse) => {
-    // For custom activities, only require time or questions
-    // For regular courses, require topics
-    if (!course.isCustomActivity && goalTopics.length === 0) {
-      Alert.alert('Hata', 'Lütfen en az bir konu seçin.');
-      return;
-    }
-
-    if (course.isCustomActivity && goalStudyTime === 0 && goalQuestions === 0) {
+    // Allow empty topic selection, but require either study time or questions
+    if (goalStudyTime === 0 && goalQuestions === 0) {
       Alert.alert('Hata', 'Lütfen çalışma süresi veya soru sayısı belirleyin.');
       return;
     }
@@ -3159,6 +3866,8 @@ function AgendaScreen() {
                   setGoalTopics([]);
                   setGoalStudyTime(60);
                   setGoalQuestions(10);
+                  setGoalStudyTimeInput('60');
+                  setGoalQuestionsInput('10');
                   setShowGoalModal(true);
                 }
               }
@@ -3179,6 +3888,8 @@ function AgendaScreen() {
                 setGoalTopics([]);
                 setGoalStudyTime(60);
                 setGoalQuestions(10);
+                setGoalStudyTimeInput('60');
+                setGoalQuestionsInput('10');
                 setShowGoalModal(true);
               }
             }
@@ -3230,6 +3941,8 @@ function AgendaScreen() {
                 setGoalTopics([]);
                 setGoalStudyTime(60);
                 setGoalQuestions(10);
+                setGoalStudyTimeInput('60');
+                setGoalQuestionsInput('10');
                 setShowGoalModal(true);
               }}
             >
@@ -3694,18 +4407,56 @@ function AgendaScreen() {
                   <View style={styles.questionContainer}>
                     <TouchableOpacity
                       style={[styles.timeButton, { backgroundColor: colors.border }]}
-                      onPress={() => setGoalStudyTime(Math.max(15, goalStudyTime - 15))}
+                      onPress={() => {
+                        const newTime = Math.max(15, goalStudyTime - 15);
+                        setGoalStudyTime(newTime);
+                        setGoalStudyTimeInput(newTime.toString());
+                      }}
                     >
                       <Icon name="minus" size={16} color={colors.primary} />
                     </TouchableOpacity>
                     <Text style={[styles.questionValue, { color: colors.text }]}>{goalStudyTime}</Text>
                     <TouchableOpacity
                       style={[styles.timeButton, { backgroundColor: colors.border }]}
-                      onPress={() => setGoalStudyTime(goalStudyTime + 15)}
+                      onPress={() => {
+                        const newTime = goalStudyTime + 15;
+                        setGoalStudyTime(newTime);
+                        setGoalStudyTimeInput(newTime.toString());
+                      }}
                     >
                       <Icon name="plus" size={16} color={colors.primary} />
                     </TouchableOpacity>
                   </View>
+                  
+                  {/* Manual Input for Study Time */}
+                  <Text style={[styles.sectionTitle, { color: colors.textMuted, fontSize: 14, marginTop: 8 }]}>
+                    veya tam sayı girin:
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      backgroundColor: colors.backgroundLight, 
+                      color: colors.text,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      fontSize: 16,
+                      textAlign: 'center',
+                      marginBottom: 15
+                    }]}
+                    value={goalStudyTimeInput}
+                    onChangeText={(text) => {
+                      setGoalStudyTimeInput(text);
+                      const num = parseInt(text, 10);
+                      if (!isNaN(num) && num >= 0) {
+                        setGoalStudyTime(num);
+                      }
+                    }}
+                    placeholder="Dakika"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                  />
 
                   {/* Question Count */}
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -3714,18 +4465,56 @@ function AgendaScreen() {
                   <View style={styles.questionContainer}>
                     <TouchableOpacity
                       style={[styles.timeButton, { backgroundColor: colors.border }]}
-                      onPress={() => setGoalQuestions(Math.max(0, goalQuestions - 5))}
+                      onPress={() => {
+                        const newQuestions = Math.max(0, goalQuestions - 5);
+                        setGoalQuestions(newQuestions);
+                        setGoalQuestionsInput(newQuestions.toString());
+                      }}
                     >
                       <Icon name="minus" size={16} color={colors.primary} />
                     </TouchableOpacity>
                     <Text style={[styles.questionValue, { color: colors.text }]}>{goalQuestions}</Text>
                     <TouchableOpacity
                       style={[styles.timeButton, { backgroundColor: colors.border }]}
-                      onPress={() => setGoalQuestions(goalQuestions + 5)}
+                      onPress={() => {
+                        const newQuestions = goalQuestions + 5;
+                        setGoalQuestions(newQuestions);
+                        setGoalQuestionsInput(newQuestions.toString());
+                      }}
                     >
                       <Icon name="plus" size={16} color={colors.primary} />
                     </TouchableOpacity>
                   </View>
+                  
+                  {/* Manual Input for Questions */}
+                  <Text style={[styles.sectionTitle, { color: colors.textMuted, fontSize: 14, marginTop: 8 }]}>
+                    veya tam sayı girin:
+                  </Text>
+                  <TextInput
+                    style={[styles.textInput, { 
+                      backgroundColor: colors.backgroundLight, 
+                      color: colors.text,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      fontSize: 16,
+                      textAlign: 'center',
+                      marginBottom: 15
+                    }]}
+                    value={goalQuestionsInput}
+                    onChangeText={(text) => {
+                      setGoalQuestionsInput(text);
+                      const num = parseInt(text, 10);
+                      if (!isNaN(num) && num >= 0) {
+                        setGoalQuestions(num);
+                      }
+                    }}
+                    placeholder="Soru Sayısı"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                  />
                 </>
               )}
             </ScrollView>
@@ -3974,6 +4763,8 @@ function AgendaScreen() {
                     setGoalTopics([]);
                     setGoalStudyTime(60);
                     setGoalQuestions(10);
+                    setGoalStudyTimeInput('60');
+                    setGoalQuestionsInput('10');
                     setShowGoalModal(true);
                   }
                 }}
@@ -5493,7 +6284,23 @@ const styles = StyleSheet.create({
   logSummaryTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  logSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  sessionCountBadge: {
+    backgroundColor: 'rgba(128, 128, 128, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  sessionCountText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
   logSummaryStats: {
     flexDirection: 'row',
@@ -6780,5 +7587,139 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 2,
+  },
+
+  // Log Viewer Modal Styles
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  logViewCard: {
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  logViewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  logViewDate: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  logViewTime: {
+    fontSize: 13,
+    fontWeight: '500',
+    opacity: 0.7,
+  },
+  logViewHeaderText: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  deleteLogButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,59,59,0.1)',
+  },
+  logViewStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    padding: 16,
+    borderRadius: 12,
+  },
+  logViewStat: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    flex: 1,
+  },
+  logViewStatIcon: {
+    marginBottom: 8,
+    backgroundColor: 'rgba(0,123,255,0.1)',
+    padding: 8,
+    borderRadius: 20,
+  },
+  logViewStatText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  logViewStatLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    opacity: 0.7,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  logViewTopics: {
+    marginTop: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+  },
+  logViewTopicsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#666',
+  },
+  logViewTopicText: {
+    fontSize: 13,
+    marginLeft: 12,
+    marginBottom: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0,123,255,0.1)',
+    borderRadius: 6,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  logViewNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#007AFF',
+    marginRight: 12,
+    minWidth: 30,
+  },
+  logViewIndexContainer: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  logViewIndexText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  logViewTopicsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
 });
