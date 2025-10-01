@@ -1,16 +1,3 @@
-// App.tsx içine Ayarlar ekranını eklemek için Tab.Navigator'a şunu ekleyin:
-
-// 1. Import ekleyin (dosyanın başına):
-// import SettingsScreen from './src/screens/SettingsScreen';
-
-// 2. Tab.Navigator içine şu satırı ekleyin (İlerleme'den sonra):
-// <Tab.Screen name="Ayarlar" component={SettingsScreen} />
-
-// 3. screenOptions içindeki tabBarIcon fonksiyonuna şunu ekleyin:
-// else if (route.name === 'Ayarlar') iconName = 'cog';
-
-// TAM GÜNCELLENM İŞ DOSYA:
-
 import React, {useEffect, useState, useRef} from 'react';
 import {
   StyleSheet,
@@ -24,231 +11,78 @@ import {
   TextInput,
   Alert,
   Modal,
+  PanResponder,
+  Dimensions,
+  Animated,
 } from 'react-native';
-import {NavigationContainer} from '@react-navigation/native';
+import {NavigationContainer, useFocusEffect} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {useFocusEffect} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SettingsScreen from './src/screens/SettingsScreen';
-import { scheduleEndOfDayNotification, showDailyReportReadyNotification } from './src/utils/reportNotifications';
+import PushNotification from 'react-native-push-notification';
 
-// Renkler
+// Color definitions
 const colors = {
-  primary: '#6366F1',
-  secondary: '#8B5CF6',
-  success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  background: '#F1F5F9',
-  backgroundLight: '#FFFFFF',
+  primary: '#2E5BFF',
+  primaryLight: '#4A73FF',
+  primaryDark: '#1E4BDF',
+  secondary: '#FF6B35',
+  success: '#28a745',
+  warning: '#FFC107',
+  danger: '#DC3545',
+  info: '#17a2b8',
+  light: '#f8f9fa',
+  dark: '#343a40',
+  background: '#FFFFFF',
+  backgroundLight: '#F8F9FA',
   card: '#FFFFFF',
-  cardSecondary: '#F8FAFC',
-  text: '#1E293B',
-  textSecondary: '#334155',
-  textLight: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
-  accent: '#F0F9FF',
+  cardSecondary: '#F8F9FA',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  textSecondary: '#95A5A6',
+  textMuted: '#BDC3C7',
+  border: '#E9ECEF',
 };
 
-// Ders verileri
-const subjects = [
-  {
-    id: 'turkce',
-    name: 'Türkçe',
-    icon: 'book-alphabet',
-    color: '#EF4444',
-    topics: [
-      'Sözcükte Anlam',
-      'Cümlede Anlam',
-      'Paragrafta Anlam',
-      'Yazım Kuralları',
-      'Noktalama İşaretleri',
-      'Sözcük Türleri',
-      'Fiilde Çatı',
-      'Fiilde Kip',
-      'Anlatım Bozuklukları',
-      'Dil Bilgisi',
-    ],
-  },
-  {
-    id: 'matematik',
-    name: 'Matematik',
-    icon: 'calculator',
-    color: '#3B82F6',
-    topics: [
-      'Temel Kavramlar',
-      'Dört İşlem',
-      'Kesirler',
-      'Oran-Orantı',
-      'Yüzdeler',
-      'Kâr-Zarar',
-      'Faiz Problemleri',
-      'Denklemler',
-      'Üslü Sayılar',
-      'Geometri',
-    ],
-  },
-  {
-    id: 'tarih',
-    name: 'Tarih',
-    icon: 'clock-time-four',
-    color: '#8B5CF6',
-    topics: [
-      'İlk Türk Devletleri',
-      'İslam Tarihi',
-      'Selçuklular',
-      'Osmanlı Kuruluş',
-      'Osmanlı Yükseliş',
-      'Osmanlı Duraklama',
-      'Osmanlı Gerileme',
-      'Tanzimat Dönemi',
-      'Meşrutiyet Dönemi',
-      'Kurtuluş Savaşı',
-    ],
-  },
-  {
-    id: 'cografya',
-    name: 'Coğrafya',
-    icon: 'earth',
-    color: '#10B981',
-    topics: [
-      'Dünya Coğrafyası',
-      'Türkiye Coğrafyası',
-      'Fiziki Coğrafya',
-      'Beşeri Coğrafya',
-      'Ekonomik Coğrafya',
-      'İklim',
-      'Nüfus',
-      'Yerşekilleri',
-      'Doğal Kaynaklar',
-      'Çevre Sorunları',
-    ],
-  },
-  {
-    id: 'vatandaslik',
-    name: 'Vatandaşlık',
-    icon: 'flag',
-    color: '#F59E0B',
-    topics: [
-      'Anayasa Hukuku',
-      'İnsan Hakları',
-      'Türk Anayasa Tarihi',
-      'Devlet Organları',
-      'Yasama',
-      'Yürütme',
-      'Yargı',
-      'Yerel Yönetimler',
-      'Seçim Sistemleri',
-      'Temel Kavramlar',
-    ],
-  },
-];
-
-// Daily log interfaces
-interface DailyLogEntry {
-  date: string; // YYYY-MM-DD format
-  studyTime: number; // minutes
-  completedTopics: {
-    subjectId: string;
-    topicIndex: number;
-    topicName: string;
-    timeSpent: number; // minutes
-    type: 'studied' | 'video' | 'questions' | 'completed';
-  }[];
-  totalProgress: {
-    studied: number;
-    videosWatched: number;
-    questionsSolved: number;
-    completed: number;
-  };
-  notes: string;
-  mood: 'excellent' | 'good' | 'average' | 'challenging' | 'difficult';
-  goals: {
-    planned: number;
-    achieved: number;
-  };
-  sessions?: number; // number of study sessions
-}
-
-interface WeeklyReport {
-  weekStart: string; // YYYY-MM-DD format
-  weekEnd: string;
-  totalStudyTime: number;
-  dailyLogs: DailyLogEntry[];
-  subjectBreakdown: {
-    [subjectId: string]: {
-      timeSpent: number;
-      topicsCompleted: number;
-      progress: number;
-    };
-  };
-  achievements: string[];
-  improvements: string[];
-  nextWeekGoals: string[];
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface MonthlyReport {
-  month: string; // YYYY-MM format
-  totalStudyTime: number;
-  weeklyReports: WeeklyReport[];
-  overallProgress: number;
-  subjectMastery: {
-    [subjectId: string]: number;
-  };
-  studyStreak: number;
-  topPerformanceDays: string[];
-  recommendations: string[];
-}
-
-// Study Timer interfaces
-interface StudySession {
-  id: string;
-  startTime: Date;
-  endTime?: Date;
-  duration: number; // in minutes
-  subject?: string;
-  topic?: string;
-  notes?: string;
-  completed: boolean;
-}
-
-interface TimerSettings {
-  sessionDuration: number; // in minutes
-  breakReminder: boolean;
-  breakDuration: number; // in minutes
-  autoStart: boolean;
-}
-
-// Default timer settings
-const defaultTimerSettings: TimerSettings = {
-  sessionDuration: 25, // 25 minutes default (Pomodoro technique)
-  breakReminder: true,
-  breakDuration: 5,
-  autoStart: false,
-};
-
-// Daily Goals interfaces
+// Daily Goal interface
 interface DailyGoal {
   id: string;
-  subjectId: string;
-  date: string; // YYYY-MM-DD format
-  goals: {
-    videos: number;
-    questions: number;
-    topics: number;
-    studyTime: number; // in minutes
-  };
+  date: string;
+  subject: string;
+  selectedTopics: string[]; // Array of topic IDs
+  studyTimeMinutes: number; // Total study time in minutes
+  questionCount: number; // Number of questions to solve
   progress: {
-    videos: number;
-    questions: number;
-    topics: number;
-    studyTime: number; // in minutes
+    completedTopics: string[]; // Array of completed topic IDs
+    studyTimeSpent: number; // Minutes spent studying
+    questionsAnswered: number; // Questions answered
   };
   completed: boolean;
+}
+
+// Course and Topic interfaces
+interface Topic {
+  id: string;
+  name: string;
+  courseId: string;
+  completion: {
+    konu: boolean;      // Topic studied
+    video: boolean;     // Video watched
+    soru: boolean;      // Questions solved
+    tamamlandi: boolean; // Completed
+  };
+  notes: string;
+  lastStudied?: string;
+}
+
+interface Course {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  topics: Topic[];
+  totalTopics: number;
+  completedTopics: number;
 }
 
 interface GoalProgress {
@@ -257,26 +91,73 @@ interface GoalProgress {
   percentage: number;
 }
 
-// Haftalık program
-const defaultWeeklySchedule = [
-  {day: 'Pazartesi', subject: 'Türkçe', icon: 'book-alphabet', color: '#EF4444'},
-  {day: 'Salı', subject: 'Matematik', icon: 'calculator', color: '#3B82F6'},
-  {day: 'Çarşamba', subject: 'Tarih', icon: 'clock-time-four', color: '#8B5CF6'},
-  {day: 'Perşembe', subject: 'Coğrafya', icon: 'earth', color: '#10B981'},
-  {day: 'Cuma', subject: 'Vatandaşlık', icon: 'flag', color: '#F59E0B'},
-  {day: 'Cumartesi', subject: 'Tekrar', icon: 'repeat', color: '#64748B'},
-  {day: 'Pazar', subject: 'Test', icon: 'file-document-edit', color: '#EC4899'},
-];
+// Study Log interface
+interface StudyLog {
+  id: string;
+  date: string;
+  studyMinutes: number;
+  videoMinutes: number;
+  questionCount: number;
+  studyTopics: string[]; // Topic IDs from daily goal + custom topics
+  videoTopics: string[]; // Video topic IDs from today's course + custom topics
+  customStudyTopics: { topicName: string; courseId: string }[]; // Custom topics not in daily goal
+  customVideoTopics: { topicName: string; courseId: string }[]; // Custom video topics
+  customQuestions: { courseId: string; count: number }[]; // Questions from other courses
+}
 
-// Ana Ekran
-function HomeScreen({ weeklySchedule }: { weeklySchedule: typeof defaultWeeklySchedule }) {
-  const [todaySubject, setTodaySubject] = useState<{
-    day: string;
-    subject: string;
-    icon: string;
-    color: string;
-  } | null>(null);
-  const [completionRate, setCompletionRate] = useState(0);
+// Weekly Goal Template interface
+interface WeeklyGoalTemplate {
+  id: string;
+  courseId: string;
+  courseName: string;
+  dayOfWeek: number; // 0=Sunday, 1=Monday, etc.
+  defaultTopics: string[]; // Default topic IDs for this day/course
+  defaultStudyTime: number; // Default study time in minutes
+  defaultQuestionCount: number; // Default question count
+  isActive: boolean;
+}
+
+// Custom Weekly Schedule interface (Legacy - for backward compatibility)
+interface CustomWeeklySchedule {
+  day: string;
+  subject: string;
+  icon: string;
+  color: string;
+  isCustom?: boolean;
+  originalSubject?: string;
+}
+
+// New Day-based Agenda interface
+interface DayAgenda {
+  id: string;
+  dayName: string;
+  dayIndex: number; // 0=Monday, 6=Sunday
+  courses: DayCourse[];
+  isToday?: boolean;
+}
+
+interface DayCourse {
+  id: string;
+  courseId: string;
+  courseName: string;
+  icon: string;
+  color: string;
+  order: number;
+  studyGoal?: {
+    topics: string[];
+    studyTimeMinutes: number;
+    questionCount: number;
+  };
+  isActive: boolean;
+  isCustomActivity?: boolean; // New field to mark custom activities
+}
+
+// Calendar view modes
+type CalendarViewMode = 'list' | 'calendar';
+
+function HomeScreen() {
+  const [weeklySchedule, setWeeklySchedule] = useState<CustomWeeklySchedule[]>(defaultWeeklySchedule);
+  const [todaySubject, setTodaySubject] = useState<CustomWeeklySchedule | null>(null);
   const [stats, setStats] = useState({
     studiedTopics: 0,
     videosWatched: 0,
@@ -289,16 +170,61 @@ function HomeScreen({ weeklySchedule }: { weeklySchedule: typeof defaultWeeklySc
     total: 0,
     percentage: 0,
   });
+  const [courses, setCourses] = useState<Course[]>(defaultCourses);
+
+  // Load custom weekly schedule
+  const loadWeeklySchedule = React.useCallback(async () => {
+    try {
+      const scheduleData = await AsyncStorage.getItem('customWeeklySchedule');
+      if (scheduleData) {
+        const customSchedule: CustomWeeklySchedule[] = JSON.parse(scheduleData);
+        setWeeklySchedule(customSchedule);
+      } else {
+        setWeeklySchedule(defaultWeeklySchedule);
+      }
+    } catch (error) {
+      console.log('Error loading weekly schedule:', error);
+      setWeeklySchedule(defaultWeeklySchedule);
+    }
+  }, []);
   
-  // Timer states
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timeElapsed, setTimeElapsed] = useState(0); // in seconds
-  const [currentSession, setCurrentSession] = useState<StudySession | null>(null);
-  const [timerSettings, setTimerSettings] = useState<TimerSettings>(defaultTimerSettings);
-  const [showTimerSettings, setShowTimerSettings] = useState(false);
-  const [sessionSubject, setSessionSubject] = useState<string>('');
-  const [sessionTopic, setSessionTopic] = useState<string>('');
-  const timerRef = useRef<any>(null);
+  // Study Log states
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [todayStudyLog, setTodayStudyLog] = useState<StudyLog | null>(null);
+  
+  // Log Modal states  
+  const [logStudyMinutes, setLogStudyMinutes] = useState(0);
+  const [logVideoMinutes, setLogVideoMinutes] = useState(0);
+  const [logQuestionCount, setLogQuestionCount] = useState(0);
+  const [logStudyTopics, setLogStudyTopics] = useState<string[]>([]);
+  const [logVideoTopics, setLogVideoTopics] = useState<string[]>([]);
+  const [customStudyTopics, setCustomStudyTopics] = useState<{ topicName: string; courseId: string }[]>([]);
+  const [customVideoTopics, setCustomVideoTopics] = useState<{ topicName: string; courseId: string }[]>([]);
+  const [customQuestions, setCustomQuestions] = useState<{ courseId: string; count: number }[]>([]);
+  const [showCustomStudyPicker, setShowCustomStudyPicker] = useState(false);
+  const [showCustomVideoPicker, setShowCustomVideoPicker] = useState(false);
+  const [showCustomQuestionPicker, setShowCustomQuestionPicker] = useState(false);
+  
+  // Input states for direct number entry
+  const [studyMinutesInput, setStudyMinutesInput] = useState('0');
+  const [videoMinutesInput, setVideoMinutesInput] = useState('0');
+  const [questionCountInput, setQuestionCountInput] = useState('0');
+
+  // Daily Goal Modal states
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [studyTimeMinutes, setStudyTimeMinutes] = useState(60); // Store in minutes
+  const [studyTimeInput, setStudyTimeInput] = useState('60'); // For manual input
+  const [questionCount, setQuestionCount] = useState(10);
+  const [questionInput, setQuestionInput] = useState('10'); // For manual input
+  const [showCrossTopicPicker, setShowCrossTopicPicker] = useState(false);
+
+  // Schedule editing states
+  const [showScheduleEditModal, setShowScheduleEditModal] = useState(false);
+  const [editingDay, setEditingDay] = useState<CustomWeeklySchedule | null>(null);
+  const [editDayName, setEditDayName] = useState('');
+  const [editSubjectName, setEditSubjectName] = useState('');
+  const [editSelectedCourse, setEditSelectedCourse] = useState<Course>(defaultCourses[0]);
 
   const calculateGoalProgress = React.useCallback((goals: DailyGoal[]) => {
     if (goals.length === 0) {
@@ -310,335 +236,426 @@ function HomeScreen({ weeklySchedule }: { weeklySchedule: typeof defaultWeeklySc
     let totalGoals = 0;
 
     goals.forEach(goal => {
-      const { goals: targetGoals, progress } = goal;
+      const { selectedTopics: goalTopics, studyTimeMinutes: goalStudyTime, questionCount: goalQuestions } = goal;
       
-      // Count individual goal achievements
-      if (progress.videos >= targetGoals.videos) totalAchieved++;
-      if (progress.questions >= targetGoals.questions) totalAchieved++;
-      if (progress.topics >= targetGoals.topics) totalAchieved++;
-      if (progress.studyTime >= targetGoals.studyTime) totalAchieved++;
+      // Count individual goal achievements based on study logs instead of goal.progress
+      if (goalTopics.length > 0) {
+        totalGoals++;
+        if (todayStudyLog) {
+          const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
+            goalTopics.includes(topicId)
+          );
+          if (studiedTopicsFromGoal.length >= goalTopics.length) totalAchieved++;
+        }
+      }
       
-      // Count total goals
-      if (targetGoals.videos > 0) totalGoals++;
-      if (targetGoals.questions > 0) totalGoals++;
-      if (targetGoals.topics > 0) totalGoals++;
-      if (targetGoals.studyTime > 0) totalGoals++;
+      if (goalQuestions > 0) {
+        totalGoals++;
+        if (todayStudyLog && todayStudyLog.questionCount >= goalQuestions) totalAchieved++;
+      }
+      
+      if (goalStudyTime > 0) {
+        totalGoals++;
+        if (todayStudyLog && todayStudyLog.studyMinutes >= goalStudyTime) totalAchieved++;
+      }
     });
 
     const percentage = totalGoals > 0 ? Math.round((totalAchieved / totalGoals) * 100) : 0;
-    
-    setGoalProgress({
-      achieved: totalAchieved,
-      total: totalGoals,
-      percentage,
-    });
-  }, []);
+    setGoalProgress({ achieved: totalAchieved, total: totalGoals, percentage });
+  }, [todayStudyLog]);
 
+  // Load today's goals
   const loadTodayGoals = React.useCallback(async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const goalsData = await AsyncStorage.getItem('dailyGoals');
-      if (goalsData) {
-        const allGoals: DailyGoal[] = JSON.parse(goalsData);
-        const todayGoalsData = allGoals.filter(goal => goal.date === today);
-        setTodayGoals(todayGoalsData);
-        calculateGoalProgress(todayGoalsData);
-      }
-    } catch (error) {
-      console.log('Daily goals yüklenemedi:', error);
-    }
-  }, [calculateGoalProgress]);
-
-  useEffect(() => {
-    const today = new Date().getDay();
-    const dayIndex = today === 0 ? 6 : today - 1;
-    setTodaySubject(weeklySchedule[dayIndex]);
-    loadTimerSettings();
-    loadTodayGoals();
-  }, [weeklySchedule, loadTodayGoals]);
-
-  const showBreakReminder = React.useCallback(() => {
-    Alert.alert(
-      '🍀 Mola Zamanı!',
-      `${timerSettings.sessionDuration} dakika çalıştın. ${timerSettings.breakDuration} dakika mola vermeyi unutma!`,
-      [
-        { text: 'Devam Et', style: 'cancel' },
-        { text: 'Mola Ver', onPress: () => setIsTimerRunning(false) },
-      ]
-    );
-  }, [timerSettings.sessionDuration, timerSettings.breakDuration]);
-
-  useEffect(() => {
-    if (isTimerRunning) {
-      timerRef.current = setInterval(() => {
-        setTimeElapsed(prev => {
-          const newTime = prev + 1;
-          // Check if session duration reached and break reminder is enabled
-          if (timerSettings.breakReminder && newTime >= timerSettings.sessionDuration * 60) {
-            showBreakReminder();
-            return newTime;
-          }
-          return newTime;
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isTimerRunning, timerSettings.breakReminder, timerSettings.sessionDuration, showBreakReminder]);
-
-  const loadTimerSettings = async () => {
-    try {
-      const settings = await AsyncStorage.getItem('timerSettings');
-      if (settings) {
-        setTimerSettings(JSON.parse(settings));
-      }
-    } catch (error) {
-      console.log('Timer settings yüklenemedi:', error);
-    }
-  };
-
-  const saveTimerSettings = async (settings: TimerSettings) => {
-    try {
-      await AsyncStorage.setItem('timerSettings', JSON.stringify(settings));
-      setTimerSettings(settings);
-    } catch (error) {
-      console.log('Timer settings kaydedilemedi:', error);
-    }
-  };
-
-  const startStudySession = () => {
-    const sessionId = Date.now().toString();
-    const session: StudySession = {
-      id: sessionId,
-      startTime: new Date(),
-      duration: 0,
-      subject: sessionSubject || todaySubject?.subject || '',
-      topic: sessionTopic,
-      completed: false,
-    };
-    
-    setCurrentSession(session);
-    setIsTimerRunning(true);
-    setTimeElapsed(0);
-  };
-
-  const pauseSession = () => {
-    setIsTimerRunning(false);
-  };
-
-  const resumeSession = () => {
-    setIsTimerRunning(true);
-  };
-
-  const endSession = async () => {
-    if (currentSession) {
-      const endTime = new Date();
-      const duration = Math.floor(timeElapsed / 60); // Convert to minutes
+      const allGoals = await AsyncStorage.getItem('dailyGoals');
       
-      const completedSession: StudySession = {
-        ...currentSession,
-        endTime,
-        duration,
-        completed: true,
+      if (allGoals) {
+        const goals = JSON.parse(allGoals);
+        const filtered = goals.filter((goal: DailyGoal) => goal.date === today);
+        setTodayGoals(filtered);
+        // Note: calculateGoalProgress will be called when todayStudyLog changes
+      } else {
+        setTodayGoals([]);
+        setGoalProgress({ achieved: 0, total: 0, percentage: 0 });
+      }
+    } catch (error) {
+      console.log('Error loading today goals:', error);
+    }
+  }, []);
+
+  // Effect to recalculate goal progress when study log or goals change
+  useEffect(() => {
+    if (todayGoals.length > 0) {
+      calculateGoalProgress(todayGoals);
+    }
+  }, [todayGoals, todayStudyLog, calculateGoalProgress]);
+
+  // Get today's subject goal
+  const getTodaySubjectGoal = () => {
+    if (!todaySubject) return null;
+    return todayGoals.find(goal => goal.subject === todaySubject.subject);
+  };
+
+  // Study Log functions
+  const getCurrentCourse = React.useCallback(() => {
+    const dayOfWeek = new Date().getDay();
+    const schedule = defaultWeeklySchedule[dayOfWeek === 0 ? 6 : dayOfWeek - 1]; // Adjust for Sunday
+    return courses.find(course => course.name === schedule.subject);
+  }, [courses]);
+
+  const calculateTodayCourseProgress = React.useCallback(() => {
+    const todayCourse = getCurrentCourse();
+    if (!todayCourse || todayGoals.length === 0) return 0;
+
+    const todayGoal = todayGoals[0];
+    if (!todayStudyLog) return 0;
+
+    // Calculate progress based on daily goal vs actual study log
+    let progressScore = 0;
+    let totalScore = 0;
+
+    // Study time progress
+    if (todayGoal.studyTimeMinutes > 0) {
+      const studyProgress = Math.min(todayStudyLog.studyMinutes / todayGoal.studyTimeMinutes, 1);
+      progressScore += studyProgress * 33.33; // 1/3 of total
+      totalScore += 33.33;
+    }
+
+    // Questions progress
+    if (todayGoal.questionCount > 0) {
+      const questionProgress = Math.min(todayStudyLog.questionCount / todayGoal.questionCount, 1);
+      progressScore += questionProgress * 33.33; // 1/3 of total
+      totalScore += 33.33;
+    }
+
+    // Topics progress (study topics)
+    if (todayGoal.selectedTopics.length > 0) {
+      const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
+        todayGoal.selectedTopics.includes(topicId)
+      );
+      const topicsProgress = Math.min(studiedTopicsFromGoal.length / todayGoal.selectedTopics.length, 1);
+      progressScore += topicsProgress * 33.33; // 1/3 of total
+      totalScore += 33.33;
+    }
+
+    return totalScore > 0 ? Math.round(progressScore) : 0;
+  }, [todayGoals, todayStudyLog, getCurrentCourse]);
+
+  // Get today's subject course progress based on study logs
+  const getTodaySubjectProgress = React.useCallback(() => {
+    if (!todaySubject) return { percentage: 0, completed: 0, total: 0 };
+    
+    // Use the new function to calculate progress based on daily goals and study logs
+    const percentage = calculateTodayCourseProgress();
+    
+    // For display purposes, calculate completed vs total from daily goals and study logs
+    if (todayGoals.length > 0) {
+      const todayGoal = todayGoals[0];
+      let completed = 0;
+      let total = 0;
+
+      // Count study time completion
+      if (todayGoal.studyTimeMinutes > 0) {
+        total++;
+        if (todayStudyLog && todayStudyLog.studyMinutes >= todayGoal.studyTimeMinutes) completed++;
+      }
+
+      // Count questions completion
+      if (todayGoal.questionCount > 0) {
+        total++;
+        if (todayStudyLog && todayStudyLog.questionCount >= todayGoal.questionCount) completed++;
+      }
+
+      // Count topics completion
+      if (todayGoal.selectedTopics.length > 0) {
+        total++;
+        if (todayStudyLog) {
+          const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
+            todayGoal.selectedTopics.includes(topicId)
+          );
+          if (studiedTopicsFromGoal.length >= todayGoal.selectedTopics.length) completed++;
+        }
+      }
+
+      return { percentage, completed, total };
+    }
+    
+    return { percentage: 0, completed: 0, total: 0 };
+  }, [todaySubject, todayGoals, todayStudyLog, calculateTodayCourseProgress]);
+
+  // Create goal for today's subject
+  const createTodayGoal = () => {
+    if (!todaySubject) return;
+    
+    // Reset modal state
+    setSelectedTopics([]);
+    setStudyTimeMinutes(60);
+    setStudyTimeInput('60');
+    setQuestionCount(10);
+    setQuestionInput('10');
+    setShowGoalModal(true);
+  };
+
+  // Save daily goal
+  const saveDailyGoal = async () => {
+    if (!todaySubject || selectedTopics.length === 0) {
+      Alert.alert('Hata', 'Lütfen en az bir konu seçin.');
+      return;
+    }
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      const newGoal: DailyGoal = {
+        id: `${todaySubject.subject}_${today}`,
+        subject: todaySubject.subject,
+        date: today,
+        selectedTopics,
+        studyTimeMinutes: studyTimeMinutes,
+        questionCount,
+        progress: {
+          completedTopics: [],
+          studyTimeSpent: 0,
+          questionsAnswered: 0,
+        },
+        completed: false,
       };
 
-      await saveStudySession(completedSession);
-      await updateDailyLogWithSession(completedSession);
+      const goalsData = await AsyncStorage.getItem('dailyGoals');
+      let allGoals: DailyGoal[] = goalsData ? JSON.parse(goalsData) : [];
       
-      setCurrentSession(null);
-      setIsTimerRunning(false);
-      setTimeElapsed(0);
-      setSessionSubject('');
-      setSessionTopic('');
+      // Remove any existing goal for this subject and date
+      allGoals = allGoals.filter(goal => !(goal.subject === todaySubject.subject && goal.date === today));
+      
+      // Add the new goal
+      allGoals.push(newGoal);
+      await AsyncStorage.setItem('dailyGoals', JSON.stringify(allGoals));
+      
+      // Reload today's goals
+      await loadTodayGoals();
+      setShowGoalModal(false);
+      
+      const hours = Math.floor(studyTimeMinutes / 60);
+      const minutes = studyTimeMinutes % 60;
+      const timeDisplay = hours > 0 ? `${hours}sa ${minutes}dk` : `${minutes}dk`;
       
       Alert.alert(
-        'Çalışma Tamamlandı! 🎉',
-        `${duration} dakika çalıştın. Harika! 💪`,
-        [{ text: 'Tamam', style: 'default' }]
+        'Hedef Oluşturuldu! 🎯',
+        `${todaySubject.subject} için günlük hedef belirlendi:\n• ${selectedTopics.length} Konu\n• ${questionCount} Soru\n• ${timeDisplay} Çalışma`
       );
-    }
-  };
-
-  const saveStudySession = async (session: StudySession) => {
-    try {
-      const existingSessions = await AsyncStorage.getItem('studySessions');
-      const sessions: StudySession[] = existingSessions ? JSON.parse(existingSessions) : [];
-      sessions.push(session);
-      await AsyncStorage.setItem('studySessions', JSON.stringify(sessions));
     } catch (error) {
-      console.log('Study session kaydedilemedi:', error);
+      console.log('Daily goal oluşturulamadı:', error);
+      Alert.alert('Hata', 'Günlük hedef oluşturulamadı.');
     }
   };
 
-  const updateDailyLogWithSession = async (session: StudySession) => {
+  // Toggle topic selection
+  const toggleTopicSelection = (topicId: string) => {
+    setSelectedTopics(prev => 
+      prev.includes(topicId) 
+        ? prev.filter(id => id !== topicId)
+        : [...prev, topicId]
+    );
+  };
+  
+  const loadTodayStudyLog = React.useCallback(async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const existingLogs = await AsyncStorage.getItem('dailyLogs');
-      const logs: DailyLogEntry[] = existingLogs ? JSON.parse(existingLogs) : [];
+      const logsData = await AsyncStorage.getItem('studyLogs');
       
-      const todayLogIndex = logs.findIndex(log => log.date === today);
-      
-      if (todayLogIndex >= 0) {
-        // Update existing log
-        logs[todayLogIndex].studyTime += session.duration;
-        logs[todayLogIndex].sessions = (logs[todayLogIndex].sessions || 0) + 1;
-        if (session.subject && !logs[todayLogIndex].notes.includes(session.subject)) {
-          logs[todayLogIndex].notes += `\n📚 ${session.subject}${session.topic ? ` - ${session.topic}` : ''} (${session.duration} dk)`;
-        }
-      } else {
-        // Create new log
-        const newLog: DailyLogEntry = {
-          date: today,
-          studyTime: session.duration,
-          mood: 'good',
-          notes: `📚 ${session.subject}${session.topic ? ` - ${session.topic}` : ''} (${session.duration} dk)`,
-          completedTopics: [],
-          totalProgress: {
-            studied: 0,
-            videosWatched: 0,
-            questionsSolved: 0,
-            completed: 0,
-          },
-          goals: {
-            planned: 0,
-            achieved: 0,
-          },
-          sessions: 1,
-        };
-        logs.push(newLog);
+      if (logsData) {
+        const logs: StudyLog[] = JSON.parse(logsData);
+        const todayLog = logs.find(log => log.date === today);
+        setTodayStudyLog(todayLog || null);
       }
-      
-      await AsyncStorage.setItem('dailyLogs', JSON.stringify(logs));
-      
-      // Also update daily goals with study time from timer
-      await updateDailyGoalsWithSession(session);
     } catch (error) {
-      console.log('Daily log güncellenemedi:', error);
+      console.log('Error loading study log:', error);
     }
-  };
+  }, []);
 
-  const updateDailyGoalsWithSession = async (session: StudySession) => {
+  const saveStudyLog = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const goalsData = await AsyncStorage.getItem('dailyGoals');
+      const logsData = await AsyncStorage.getItem('studyLogs');
+      let logs: StudyLog[] = logsData ? JSON.parse(logsData) : [];
       
-      if (!goalsData || !session.subject) return;
+      // Remove existing log for today if any
+      logs = logs.filter(log => log.date !== today);
       
-      let dailyGoals: DailyGoal[] = JSON.parse(goalsData);
-      const subjectData = subjects.find(s => s.name === session.subject);
-      
-      if (!subjectData) return;
-      
-      const goalIndex = dailyGoals.findIndex(goal => 
-        goal.date === today && goal.subjectId === subjectData.id
-      );
-      
-      if (goalIndex !== -1) {
-        // Update study time progress
-        dailyGoals[goalIndex].progress.studyTime += session.duration;
-        
-        // Check if goal is completed
-        const goal = dailyGoals[goalIndex];
-        goal.completed = (
-          goal.progress.videos >= goal.goals.videos &&
-          goal.progress.questions >= goal.goals.questions &&
-          goal.progress.topics >= goal.goals.topics &&
-          goal.progress.studyTime >= goal.goals.studyTime
-        );
-        
-        await AsyncStorage.setItem('dailyGoals', JSON.stringify(dailyGoals));
-      }
-    } catch (error) {
-      console.log('Daily goals session update failed:', error);
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      const refreshData = async () => {
-        const today = new Date().getDay();
-        const dayIndex = today === 0 ? 6 : today - 1;
-        setTodaySubject(weeklySchedule[dayIndex]);
-        await loadProgress();
-        await loadTodayGoals();
+      // Create new log
+      const newLog: StudyLog = {
+        id: Date.now().toString(),
+        date: today,
+        studyMinutes: logStudyMinutes,
+        videoMinutes: logVideoMinutes,
+        questionCount: logQuestionCount,
+        studyTopics: logStudyTopics,
+        videoTopics: logVideoTopics,
+        customStudyTopics,
+        customVideoTopics,
+        customQuestions,
       };
       
-      refreshData();
-    }, [weeklySchedule, loadTodayGoals])
-  );
+      logs.push(newLog);
+      await AsyncStorage.setItem('studyLogs', JSON.stringify(logs));
+      setTodayStudyLog(newLog);
+      setShowLogModal(false);
+      
+      // Reset form
+      setLogStudyMinutes(0);
+      setLogVideoMinutes(0);
+      setLogQuestionCount(0);
+      setLogStudyTopics([]);
+      setLogVideoTopics([]);
+      setCustomStudyTopics([]);
+      setCustomVideoTopics([]);
+      setCustomQuestions([]);
+      
+      // Reset input states
+      setStudyMinutesInput('0');
+      setVideoMinutesInput('0');
+      setQuestionCountInput('0');
+      
+      // Refresh progress
+      loadProgress();
+      
+      Alert.alert('✅', 'Çalışma kaydı başarıyla eklendi!');
+    } catch (error) {
+      console.log('Error saving study log:', error);
+      Alert.alert('❌', 'Kayıt sırasında hata oluştu');
+    }
+  };
 
-  const loadProgress = async () => {
+  // Schedule editing functions
+  const editScheduleDay = (day: CustomWeeklySchedule) => {
+    setEditingDay(day);
+    setEditDayName(day.day);
+    setEditSubjectName(day.subject);
+    
+    const course = courses.find(c => c.name === day.subject) || courses[0];
+    setEditSelectedCourse(course);
+    setShowScheduleEditModal(true);
+  };
+
+  const saveScheduleChanges = async () => {
+    if (!editingDay) return;
+    
     try {
-      const progress = await AsyncStorage.getItem('progress');
-      if (progress) {
-        const data = JSON.parse(progress);
-        let total = 0;
-        let completed = 0;
-        let studied = 0;
-        let videos = 0;
-        let questions = 0;
-
-        subjects.forEach(subject => {
-          subject.topics.forEach((_, index) => {
-            total += 4;
-            const topicData = data[subject.id]?.[index];
-            if (topicData) {
-              if (topicData.studied) {
-                completed++;
-                studied++;
-              }
-              if (topicData.videoWatched) {
-                completed++;
-                videos++;
-              }
-              if (topicData.questionsSolved) {
-                completed++;
-                questions++;
-              }
-              if (topicData.completed) completed++;
+      const updatedSchedule = weeklySchedule.map(day => 
+        day.day === editingDay.day 
+          ? {
+              ...day,
+              day: editDayName.trim() || editingDay.day,
+              subject: editSubjectName.trim() || editSelectedCourse.name,
+              isCustom: true,
+              originalSubject: day.originalSubject || day.subject
             }
+          : day
+      );
+      
+      await AsyncStorage.setItem('customWeeklySchedule', JSON.stringify(updatedSchedule));
+      setWeeklySchedule(updatedSchedule);
+      setShowScheduleEditModal(false);
+      
+      Alert.alert(
+        '✅', 
+        `${editDayName} günü güncellendi: ${editSubjectName || editSelectedCourse.name}`
+      );
+    } catch (error) {
+      console.log('Error saving schedule changes:', error);
+      Alert.alert('❌', 'Program güncellenirken hata oluştu');
+    }
+  };
+
+  const resetScheduleToDefault = () => {
+    Alert.alert(
+      'Program Sıfırla',
+      'Haftalık programı varsayılan haline sıfırlamak istediğinizden emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sıfırla',
+          style: 'destructive',
+          onPress: async () => {
+            await AsyncStorage.removeItem('customWeeklySchedule');
+            setWeeklySchedule(defaultWeeklySchedule);
+            Alert.alert('✅', 'Haftalık program varsayılan haline sıfırlandı!');
+          },
+        },
+      ]
+    );
+  };
+
+  // Load progress data
+  const loadProgress = React.useCallback(async () => {
+    try {
+      // Load course data
+      const coursesData = await AsyncStorage.getItem('courses');
+      if (coursesData) {
+        const coursesArray: Course[] = JSON.parse(coursesData);
+        setCourses(coursesArray);
+      } else {
+        setCourses(defaultCourses);
+      }
+
+      // Load today's study log to calculate actual progress
+      const today = new Date().toISOString().split('T')[0];
+      const logsData = await AsyncStorage.getItem('studyLogs');
+      let todayLog: StudyLog | null = null;
+      
+      if (logsData) {
+        const logs: StudyLog[] = JSON.parse(logsData);
+        todayLog = logs.find(log => log.date === today) || null;
+        setTodayStudyLog(todayLog);
+      }
+
+      // Calculate stats from study logs instead of checkboxes
+      if (logsData) {
+        const logs: StudyLog[] = JSON.parse(logsData);
+        let totalStudyMinutes = 0;
+        let totalVideoMinutes = 0;
+        let totalQuestions = 0;
+
+        logs.forEach(log => {
+          totalStudyMinutes += log.studyMinutes;
+          totalVideoMinutes += log.videoMinutes;
+          totalQuestions += log.questionCount;
+          // Add custom questions
+          log.customQuestions.forEach(cq => {
+            totalQuestions += cq.count;
           });
         });
 
-        setCompletionRate(total > 0 ? Math.round((completed / total) * 100) : 0);
         setStats({
-          studiedTopics: studied,
-          videosWatched: videos,
-          questionsSolved: questions,
+          studiedTopics: Math.floor(totalStudyMinutes / 60), // Convert minutes to "topics studied"
+          videosWatched: Math.floor(totalVideoMinutes / 30), // Convert to "videos watched"
+          questionsSolved: totalQuestions,
+        });
+      } else {
+        setStats({
+          studiedTopics: 0,
+          videosWatched: 0,
+          questionsSolved: 0,
         });
       }
     } catch (error) {
       console.log('Progress yüklenemedi:', error);
     }
-  };
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     
-    // Update today's subject
+    // Load custom weekly schedule first
+    await loadWeeklySchedule();
+    
+    // Update today's subject based on loaded schedule
     const today = new Date().getDay();
     const dayIndex = today === 0 ? 6 : today - 1;
-    setTodaySubject(weeklySchedule[dayIndex]);
+    const currentSchedule = await AsyncStorage.getItem('customWeeklySchedule');
+    const schedule = currentSchedule ? JSON.parse(currentSchedule) : defaultWeeklySchedule;
+    setTodaySubject(schedule[dayIndex]);
     
     // Reload progress data and goals
     await loadProgress();
@@ -647,11 +664,41 @@ function HomeScreen({ weeklySchedule }: { weeklySchedule: typeof defaultWeeklySc
     setRefreshing(false);
   };
 
+  // Load initial data when component mounts
+  useEffect(() => {
+    const loadInitialData = async () => {
+      // Load weekly schedule first
+      await loadWeeklySchedule();
+      
+      // Set today's subject based on loaded schedule
+      const today = new Date().getDay();
+      const dayIndex = today === 0 ? 6 : today - 1;
+      const currentSchedule = await AsyncStorage.getItem('customWeeklySchedule');
+      const schedule = currentSchedule ? JSON.parse(currentSchedule) : defaultWeeklySchedule;
+      setTodaySubject(schedule[dayIndex]);
+      
+      // Load progress, goals, and study log
+      await loadProgress();
+      await loadTodayGoals();
+      await loadTodayStudyLog();
+    };
+
+    loadInitialData();
+  }, [loadProgress, loadTodayGoals, loadTodayStudyLog, loadWeeklySchedule]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.compactHeader}>
-        <Text style={styles.compactHeaderTitle}>KPSS Takip</Text>
-        <Text style={styles.compactHeaderSubtitle}>Başarıya Giden Yol 🎯</Text>
+      {/* Enhanced Header */}
+      <View style={[styles.modernHeader, { backgroundColor: colors.primary }]}>
+        <View style={styles.headerGradientOverlay}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.modernHeaderTitle}>
+                KPSS Takip
+              </Text>
+            </View>
+          </View>
+        </View>
       </View>
 
       <ScrollView 
@@ -670,218 +717,1086 @@ function HomeScreen({ weeklySchedule }: { weeklySchedule: typeof defaultWeeklySc
       >
         <View style={styles.topSection}>
           {todaySubject && (
-            <View style={[styles.compactTodayCard, {borderLeftColor: todaySubject.color}]}>
-              <Icon name={todaySubject.icon} size={24} color={todaySubject.color} />
-              <View style={styles.compactTodayInfo}>
-                <Text style={styles.compactTodayLabel}>Bugünün Dersi</Text>
-                <Text style={styles.compactTodaySubject}>{todaySubject.subject}</Text>
-              </View>
-              <View style={styles.compactProgressBadge}>
-                <Text style={styles.compactProgressText}>{goalProgress.percentage}%</Text>
-              </View>
-              {goalProgress.total > 0 && (
-                <View style={styles.goalSummary}>
-                  <Text style={styles.goalSummaryText}>
-                    {goalProgress.achieved}/{goalProgress.total} Hedef
-                  </Text>
+            <View style={[styles.modernTodayCard, { backgroundColor: colors.card }]}>
+              <View style={styles.todayCardContent}>
+                <View style={[styles.subjectIconContainer, { backgroundColor: todaySubject.color + '15' }]}>
+                  <Icon name={todaySubject.icon} size={28} color={todaySubject.color} />
                 </View>
-              )}
+                <View style={styles.todayCardInfo}>
+                  <Text style={[styles.todayCardLabel, { color: colors.textLight }]}>Bugünün Dersi</Text>
+                  <Text style={[styles.todayCardSubject, { color: colors.text }]}>{todaySubject.subject}</Text>
+                  <View style={styles.progressRow}>
+                    <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                      <View 
+                        style={[
+                          styles.progressFill, 
+                          { 
+                            backgroundColor: todaySubject.color,
+                            width: `${getTodaySubjectProgress().percentage}%`
+                          }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={[styles.progressText, { color: todaySubject.color }]}>
+                      {getTodaySubjectProgress().percentage}%
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <View style={[styles.achievementBadge, { backgroundColor: todaySubject.color }]}>
+                <Icon name="trophy" size={16} color="white" />
+                <Text style={styles.achievementText}>{getTodaySubjectProgress().completed}/{getTodaySubjectProgress().total}</Text>
+              </View>
             </View>
           )}
 
-          {/* Study Timer Widget */}
-          <View style={styles.timerWidget}>
-            <View style={styles.timerHeader}>
-              <Icon name="timer" size={20} color={colors.primary} />
-              <Text style={styles.timerTitle}>Çalışma Zamanlayıcısı</Text>
-              <TouchableOpacity 
-                onPress={() => setShowTimerSettings(true)}
-                style={styles.timerSettingsButton}
-              >
-                <Icon name="cog" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+          {/* Daily Goal Card - Only show if there's a goal for today's subject */}
+          {(() => {
+            const todayGoal = getTodaySubjectGoal();
             
-            <View style={styles.timerDisplay}>
-              <Text style={styles.timerTime}>{formatTime(timeElapsed)}</Text>
-              <Text style={styles.timerSubtext}>
-                {currentSession ? 
-                  `${currentSession.subject || 'Genel Çalışma'}${currentSession.topic ? ` - ${currentSession.topic}` : ''}` : 
-                  'Hedef: ' + timerSettings.sessionDuration + ' dk'
-                }
-              </Text>
-            </View>
-
-            <View style={styles.timerControls}>
-              {!isTimerRunning && !currentSession ? (
-                <TouchableOpacity 
-                  onPress={startStudySession}
-                  style={[styles.timerButton, styles.startButton]}
-                >
-                  <Icon name="play" size={16} color={colors.backgroundLight} />
-                  <Text style={styles.timerButtonText}>Başla</Text>
-                </TouchableOpacity>
-              ) : isTimerRunning ? (
-                <TouchableOpacity 
-                  onPress={pauseSession}
-                  style={[styles.timerButton, styles.pauseButton]}
-                >
-                  <Icon name="pause" size={16} color={colors.backgroundLight} />
-                  <Text style={styles.timerButtonText}>Duraklat</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity 
-                  onPress={resumeSession}
-                  style={[styles.timerButton, styles.resumeButton]}
-                >
-                  <Icon name="play" size={16} color={colors.backgroundLight} />
-                  <Text style={styles.timerButtonText}>Devam Et</Text>
-                </TouchableOpacity>
-              )}
-              
-              {currentSession && (
-                <TouchableOpacity 
-                  onPress={endSession}
-                  style={[styles.timerButton, styles.endButton]}
-                >
-                  <Icon name="stop" size={16} color={colors.backgroundLight} />
-                  <Text style={styles.timerButtonText}>Bitir</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {currentSession && (
-              <View style={styles.sessionInputs}>
-                <View style={styles.inputRow}>
-                  <TextInput
-                    style={styles.sessionInput}
-                    placeholder="Ders (opsiyonel)"
-                    value={sessionSubject}
-                    onChangeText={setSessionSubject}
-                    placeholderTextColor={colors.textMuted}
-                  />
+            // If no goal exists for today's subject, show create goal option
+            if (!todayGoal && todaySubject) {
+              return (
+                <View style={[styles.dailyGoalCard, {borderLeftColor: colors.primary, backgroundColor: colors.card}]}>
+                  <View style={styles.dailyGoalHeader}>
+                    <Icon name="target-account" size={24} color={colors.primary} />
+                    <View style={styles.dailyGoalInfo}>
+                      <Text style={[styles.dailyGoalTitle, { color: colors.text }]}>Günlük Hedef Belirle</Text>
+                      <Text style={[styles.dailyGoalSubtitle, { color: colors.textLight }]}>
+                        {todaySubject.subject} için hedef oluştur
+                      </Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={createTodayGoal}
+                      style={[styles.goalActionButton, { backgroundColor: colors.primary }]}
+                    >
+                      <Icon name="plus" size={20} color="white" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={styles.inputRow}>
-                  <TextInput
-                    style={styles.sessionInput}
-                    placeholder="Konu (opsiyonel)"
-                    value={sessionTopic}
-                    onChangeText={setSessionTopic}
-                    placeholderTextColor={colors.textMuted}
-                  />
+              );
+            }
+
+            // If goal exists, show progress
+            if (todayGoal) {
+              // Calculate actual progress from study logs
+              let studyProgress = 0;
+              let questionProgress = 0;
+              let topicsProgress = 0;
+
+              if (todayStudyLog) {
+                studyProgress = todayGoal.studyTimeMinutes > 0 ? 
+                  Math.min(todayStudyLog.studyMinutes / todayGoal.studyTimeMinutes, 1) : 0;
+                
+                questionProgress = todayGoal.questionCount > 0 ? 
+                  Math.min(todayStudyLog.questionCount / todayGoal.questionCount, 1) : 0;
+                
+                if (todayGoal.selectedTopics.length > 0) {
+                  const studiedTopicsFromGoal = todayStudyLog.studyTopics.filter(topicId => 
+                    todayGoal.selectedTopics.includes(topicId)
+                  );
+                  topicsProgress = Math.min(studiedTopicsFromGoal.length / todayGoal.selectedTopics.length, 1);
+                }
+              }
+
+              return (
+                <View style={[styles.dailyGoalCard, {borderLeftColor: colors.success, backgroundColor: colors.card}]}>
+                  <View style={styles.dailyGoalHeader}>
+                    <Icon name="target-account" size={24} color={colors.success} />
+                    <View style={styles.dailyGoalInfo}>
+                      <Text style={[styles.dailyGoalTitle, { color: colors.text }]}>Günlük Hedef</Text>
+                      <Text style={[styles.dailyGoalSubtitle, { color: colors.textLight }]}>
+                        {todayGoal.subject} - {goalProgress.achieved}/{goalProgress.total} tamamlandı
+                      </Text>
+                    </View>
+                    <View style={styles.goalActions}>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          // Pre-fill modal with existing goal data
+                          setSelectedTopics(todayGoal.selectedTopics);
+                          setStudyTimeMinutes(todayGoal.studyTimeMinutes);
+                          setStudyTimeInput(String(todayGoal.studyTimeMinutes));
+                          setQuestionCount(todayGoal.questionCount);
+                          setQuestionInput(String(todayGoal.questionCount));
+                          setShowGoalModal(true);
+                        }}
+                        style={[styles.goalEditButton, { backgroundColor: colors.info }]}
+                      >
+                        <Icon name="pencil" size={16} color="white" />
+                      </TouchableOpacity>
+                      <View style={[styles.goalProgressBadge, { backgroundColor: colors.success }]}>
+                        <Text style={styles.goalProgressText}>{goalProgress.percentage}%</Text>
+                      </View>
+                    </View>
+                  </View>
+                  
+                  {/* Selected Topics */}
+                  <View style={styles.selectedTopicsSection}>
+                    <Text style={[styles.selectedTopicsTitle, { color: colors.textLight }]}>Seçilen Konular:</Text>
+                    <View style={styles.selectedTopicsContainer}>
+                      {todayGoal.selectedTopics.map((topicId) => {
+                        const topic = courses.flatMap(c => c.topics).find(t => t.id === topicId);
+                        const isStudied = todayStudyLog?.studyTopics.includes(topicId) || false;
+                        return topic ? (
+                          <View key={topicId} style={[
+                            styles.selectedTopicChip, 
+                            { 
+                              backgroundColor: isStudied ? colors.success + '20' : colors.backgroundLight,
+                              borderColor: isStudied ? colors.success : colors.border
+                            }
+                          ]}>
+                            <Icon 
+                              name={isStudied ? "check-circle" : "circle-outline"} 
+                              size={14} 
+                              color={isStudied ? colors.success : colors.textMuted} 
+                            />
+                            <Text style={[
+                              styles.selectedTopicText, 
+                              { color: isStudied ? colors.success : colors.text }
+                            ]}>
+                              {topic.name}
+                            </Text>
+                          </View>
+                        ) : null;
+                      })}
+                    </View>
+                  </View>
+                  
+                  <View style={styles.progressGrid}>
+                    <View style={styles.progressItem}>
+                      <Icon 
+                        name="book-check" 
+                        size={20} 
+                        color={topicsProgress >= 1 ? colors.success : colors.textMuted} 
+                        style={styles.progressIcon}
+                      />
+                      <Text style={styles.progressValue}>
+                        {todayStudyLog?.studyTopics.filter(topicId => 
+                          todayGoal.selectedTopics.includes(topicId)
+                        ).length || 0}/{todayGoal.selectedTopics.length}
+                      </Text>
+                      <Text style={styles.progressTarget}>Konu</Text>
+                    </View>
+                    
+                    <View style={styles.progressItem}>
+                      <Icon 
+                        name="help-circle" 
+                        size={20} 
+                        color={questionProgress >= 1 ? colors.success : colors.textMuted} 
+                        style={styles.progressIcon}
+                      />
+                      <Text style={styles.progressValue}>
+                        {todayStudyLog?.questionCount || 0}/{todayGoal.questionCount}
+                      </Text>
+                      <Text style={styles.progressTarget}>Soru</Text>
+                    </View>
+                    
+                    <View style={styles.progressItem}>
+                      <Icon 
+                        name="clock" 
+                        size={20} 
+                        color={studyProgress >= 1 ? colors.success : colors.textMuted} 
+                        style={styles.progressIcon}
+                      />
+                      <Text style={styles.progressValue}>
+                        {todayStudyLog?.studyMinutes || 0}/{todayGoal.studyTimeMinutes}
+                      </Text>
+                      <Text style={styles.progressTarget}>Dakika</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            }
+
+            return null;
+          })()}
+        </View>
+
+        {/* Study Log Section */}
+        <View style={styles.studyLogSection}>
+          <TouchableOpacity 
+            style={[styles.logButton, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              // Initialize input states with current values
+              setStudyMinutesInput(String(logStudyMinutes));
+              setVideoMinutesInput(String(logVideoMinutes));
+              setQuestionCountInput(String(logQuestionCount));
+              setShowLogModal(true);
+            }}
+          >
+            <Icon name="book-plus" size={24} color="white" />
+            <Text style={styles.logButtonText}>Çalışma Kaydet</Text>
+          </TouchableOpacity>
+          
+          {todayStudyLog && (
+            <View style={[styles.todayLogSummary, { backgroundColor: colors.card }]}>
+              <Text style={[styles.logSummaryTitle, { color: colors.text }]}>Bugünün Özeti</Text>
+              <View style={styles.logSummaryStats}>
+                <View style={styles.logStat}>
+                  <Icon name="clock" size={16} color={colors.primary} />
+                  <Text style={[styles.logStatText, { color: colors.textLight }]}>
+                    {todayStudyLog.studyMinutes}dk Çalışma
+                  </Text>
+                </View>
+                <View style={styles.logStat}>
+                  <Icon name="video" size={16} color={colors.secondary} />
+                  <Text style={[styles.logStatText, { color: colors.textLight }]}>
+                    {todayStudyLog.videoMinutes}dk Video
+                  </Text>
+                </View>
+                <View style={styles.logStat}>
+                  <Icon name="help-circle" size={16} color={colors.success} />
+                  <Text style={[styles.logStatText, { color: colors.textLight }]}>
+                    {todayStudyLog.questionCount} Soru
+                  </Text>
                 </View>
               </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.compactStatsSection}>
-          <View style={styles.statsRow}>
-            <View style={styles.compactStatItem}>
-              <Icon name="book-check" size={20} color={colors.success} />
-              <Text style={styles.compactStatValue}>{stats.studiedTopics}</Text>
-              <Text style={styles.compactStatLabel}>Konu</Text>
             </View>
-            <View style={styles.compactStatItem}>
-              <Icon name="video" size={20} color={colors.primary} />
-              <Text style={styles.compactStatValue}>{stats.videosWatched}</Text>
-              <Text style={styles.compactStatLabel}>Video</Text>
-            </View>
-            <View style={styles.compactStatItem}>
-              <Icon name="checkbox-marked-circle" size={20} color={colors.warning} />
-              <Text style={styles.compactStatValue}>{stats.questionsSolved}</Text>
-              <Text style={styles.compactStatLabel}>Soru</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.compactMotivationCard}>
-          <Icon name="fire" size={20} color="#F59E0B" />
-          <Text style={styles.compactMotivationText}>
-            Her gün biraz daha ilerliyorsun! 💪
-          </Text>
+          )}
         </View>
       </ScrollView>
 
-      {/* Timer Settings Modal */}
+      {/* Daily Goal Creation Modal */}
       <Modal
-        visible={showTimerSettings}
+        visible={showGoalModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowTimerSettings(false)}
+        onRequestClose={() => setShowGoalModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Zamanlayıcı Ayarları</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                🎯 Günlük Hedef Belirle
+              </Text>
               <TouchableOpacity 
-                onPress={() => setShowTimerSettings(false)}
+                onPress={() => setShowGoalModal(false)}
                 style={styles.modalCloseButton}
               >
-                <Icon name="close" size={20} color={colors.textMuted} />
+                <Icon name="close" size={24} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>Çalışma Süresi (dakika)</Text>
-              <View style={styles.settingInputRow}>
-                <TouchableOpacity 
-                  onPress={() => saveTimerSettings({...timerSettings, sessionDuration: Math.max(5, timerSettings.sessionDuration - 5)})}
-                  style={styles.adjustButton}
-                >
-                  <Icon name="minus" size={16} color={colors.primary} />
-                </TouchableOpacity>
-                <Text style={styles.settingValue}>{timerSettings.sessionDuration}</Text>
-                <TouchableOpacity 
-                  onPress={() => saveTimerSettings({...timerSettings, sessionDuration: Math.min(120, timerSettings.sessionDuration + 5)})}
-                  style={styles.adjustButton}
-                >
-                  <Icon name="plus" size={16} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {todaySubject && (
+                <>
+                  <Text style={[styles.modalSubject, { color: colors.primary }]}>
+                    {todaySubject.subject}
+                  </Text>
 
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>Mola Hatırlatıcısı</Text>
-              <TouchableOpacity 
-                onPress={() => saveTimerSettings({...timerSettings, breakReminder: !timerSettings.breakReminder})}
-                style={styles.toggleButton}
+                  {/* Topic Selection */}
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Konular Seçin:
+                  </Text>
+                  
+                  {/* Current Course Topics */}
+                  <Text style={[styles.sectionTitle, { color: colors.textLight, fontSize: 14, marginTop: 8 }]}>
+                    {todaySubject.subject} Konuları:
+                  </Text>
+                  <View style={styles.topicsContainer}>
+                    {courses
+                      .find(c => c.name === todaySubject.subject)
+                      ?.topics.map((topic) => (
+                        <TouchableOpacity
+                          key={topic.id}
+                          style={[
+                            styles.topicItem,
+                            {
+                              backgroundColor: selectedTopics.includes(topic.id)
+                                ? colors.primary + '15'
+                                : colors.background,
+                              borderColor: selectedTopics.includes(topic.id)
+                                ? colors.primary
+                                : colors.border,
+                            },
+                          ]}
+                          onPress={() => toggleTopicSelection(topic.id)}
+                        >
+                          <Text
+                            style={[
+                              styles.topicItemText,
+                              {
+                                color: selectedTopics.includes(topic.id)
+                                  ? colors.primary
+                                  : colors.text,
+                              },
+                            ]}
+                          >
+                            {topic.name}
+                          </Text>
+                          {selectedTopics.includes(topic.id) && (
+                            <Icon name="check-circle" size={20} color={colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                  </View>
+
+                  {/* Add Topics from Other Courses Button */}
+                  <TouchableOpacity
+                    style={[styles.topicItem, { 
+                      backgroundColor: colors.info + '10',
+                      borderColor: colors.info,
+                      borderStyle: 'dashed',
+                      marginTop: 15,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      paddingVertical: 16,
+                      flexDirection: 'row'
+                    }]}
+                    onPress={() => setShowCrossTopicPicker(true)}
+                  >
+                    <Icon name="school" size={18} color={colors.info} />
+                    <Text style={[styles.topicItemText, { 
+                      color: colors.info, 
+                      marginLeft: 8,
+                      fontWeight: '600'
+                    }]}>
+                      Diğer Derslerden Konu Ekle
+                    </Text>
+                    <Icon name="chevron-right" size={16} color={colors.info} style={{ marginLeft: 'auto' }} />
+                  </TouchableOpacity>
+
+                  {/* Study Time Selection */}
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Çalışma Süresi:
+                  </Text>
+                  <View style={styles.timeContainer}>
+                    <Text style={[styles.timeLabel, { color: colors.textLight }]}>Dakika</Text>
+                    <View style={styles.timeButtons}>
+                      <TouchableOpacity
+                        style={[styles.timeButton, { backgroundColor: colors.border }]}
+                        onPress={() => {
+                          const newValue = Math.max(15, studyTimeMinutes - 15);
+                          setStudyTimeMinutes(newValue);
+                          setStudyTimeInput(String(newValue));
+                        }}
+                      >
+                        <Icon name="minus" size={16} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TextInput
+                        style={[styles.timeValue, { 
+                          backgroundColor: colors.backgroundLight, 
+                          color: colors.text,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          borderRadius: 8,
+                          paddingHorizontal: 12,
+                          textAlign: 'center',
+                          minWidth: 80
+                        }]}
+                        value={studyTimeInput}
+                        onChangeText={(text) => {
+                          setStudyTimeInput(text);
+                          const minutes = parseInt(text, 10) || 0;
+                          setStudyTimeMinutes(Math.max(0, minutes));
+                        }}
+                        keyboardType="numeric"
+                        placeholder="60"
+                        placeholderTextColor={colors.textMuted}
+                      />
+                      <TouchableOpacity
+                        style={[styles.timeButton, { backgroundColor: colors.border }]}
+                        onPress={() => {
+                          const newValue = studyTimeMinutes + 15;
+                          setStudyTimeMinutes(newValue);
+                          setStudyTimeInput(String(newValue));
+                        }}
+                      >
+                        <Icon name="plus" size={16} color={colors.primary} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.timeLabel, { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 5 }]}>
+                      {Math.floor(studyTimeMinutes / 60) > 0 
+                        ? `${Math.floor(studyTimeMinutes / 60)} saat ${studyTimeMinutes % 60} dakika`
+                        : `${studyTimeMinutes} dakika`
+                      }
+                    </Text>
+                  </View>
+
+                  {/* Question Count */}
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Soru Sayısı:
+                  </Text>
+                  <View style={styles.questionContainer}>
+                    <TouchableOpacity
+                      style={[styles.timeButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = Math.max(0, questionCount - 5);
+                        setQuestionCount(newValue);
+                        setQuestionInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="minus" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.questionValue, { 
+                        backgroundColor: colors.backgroundLight, 
+                        color: colors.text,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        borderRadius: 8,
+                        paddingHorizontal: 12,
+                        textAlign: 'center',
+                        minWidth: 80
+                      }]}
+                      value={questionInput}
+                      onChangeText={(text) => {
+                        setQuestionInput(text);
+                        const count = parseInt(text, 10) || 0;
+                        setQuestionCount(Math.max(0, count));
+                      }}
+                      keyboardType="numeric"
+                      placeholder="10"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                    <TouchableOpacity
+                      style={[styles.timeButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = questionCount + 5;
+                        setQuestionCount(newValue);
+                        setQuestionInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="plus" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowGoalModal(false)}
               >
-                <Icon 
-                  name={timerSettings.breakReminder ? "toggle-switch" : "toggle-switch-off"} 
-                  size={24} 
-                  color={timerSettings.breakReminder ? colors.success : colors.textMuted} 
-                />
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={saveDailyGoal}
+              >
+                <Text style={styles.modalButtonText}>Hedef Oluştur</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Study Log Modal */}
+      <Modal
+        visible={showLogModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLogModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                📝 Çalışma Kaydet
+              </Text>
+              <TouchableOpacity onPress={() => setShowLogModal(false)}>
+                <Icon name="close" size={24} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
-            {timerSettings.breakReminder && (
-              <View style={styles.settingItem}>
-                <Text style={styles.settingLabel}>Mola Süresi (dakika)</Text>
-                <View style={styles.settingInputRow}>
-                  <TouchableOpacity 
-                    onPress={() => saveTimerSettings({...timerSettings, breakDuration: Math.max(1, timerSettings.breakDuration - 1)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="minus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.settingValue}>{timerSettings.breakDuration}</Text>
-                  <TouchableOpacity 
-                    onPress={() => saveTimerSettings({...timerSettings, breakDuration: Math.min(30, timerSettings.breakDuration + 1)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="plus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Study Section */}
+              <View style={styles.logSection}>
+                <Text style={[styles.logSectionTitle, { color: colors.text }]}>📚 Çalışma</Text>
+                
+                {/* Study Time */}
+                <View style={styles.logInputGroup}>
+                  <Text style={[styles.logLabel, { color: colors.textLight }]}>Çalışma Süresi (dakika)</Text>
+                  <View style={styles.inputWithButtons}>
+                    <TouchableOpacity 
+                      style={[styles.counterButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = Math.max(0, logStudyMinutes - 15);
+                        setLogStudyMinutes(newValue);
+                        setStudyMinutesInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="minus" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.numberInput, { backgroundColor: colors.backgroundLight, color: colors.text }]}
+                      value={studyMinutesInput}
+                      onChangeText={(text) => {
+                        setStudyMinutesInput(text);
+                        const num = parseInt(text, 10) || 0;
+                        setLogStudyMinutes(Math.max(0, num));
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                    <TouchableOpacity 
+                      style={[styles.counterButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = logStudyMinutes + 15;
+                        setLogStudyMinutes(newValue);
+                        setStudyMinutesInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="plus" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Study Topics from Daily Goal */}
+                {todayGoals.length > 0 && todayGoals[0]?.selectedTopics.length > 0 && (
+                  <View style={styles.logInputGroup}>
+                    <Text style={[styles.logLabel, { color: colors.textLight }]}>Günlük Hedef Konuları</Text>
+                    <View style={styles.topicsContainer}>
+                      {todayGoals[0].selectedTopics.map((topicId) => {
+                        const topic = courses.flatMap(c => c.topics).find(t => t.id === topicId);
+                        return topic ? (
+                          <TouchableOpacity
+                            key={topicId}
+                            style={[
+                              styles.topicItem,
+                              { 
+                                backgroundColor: logStudyTopics.includes(topicId) ? colors.primary + '20' : colors.backgroundLight,
+                                borderColor: logStudyTopics.includes(topicId) ? colors.primary : colors.border
+                              }
+                            ]}
+                            onPress={() => {
+                              if (logStudyTopics.includes(topicId)) {
+                                setLogStudyTopics(logStudyTopics.filter(id => id !== topicId));
+                              } else {
+                                setLogStudyTopics([...logStudyTopics, topicId]);
+                              }
+                            }}
+                          >
+                            <Icon 
+                              name={logStudyTopics.includes(topicId) ? "checkbox-marked" : "checkbox-blank-outline"} 
+                              size={20} 
+                              color={logStudyTopics.includes(topicId) ? colors.primary : colors.textMuted} 
+                            />
+                            <Text style={[styles.topicItemText, { color: colors.text }]}>{topic.name}</Text>
+                          </TouchableOpacity>
+                        ) : null;
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Custom Study Topics */}
+                <View style={styles.logInputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={[styles.logLabel, { color: colors.textLight }]}>Özel Konu Ekle</Text>
+                    <TouchableOpacity 
+                      style={[styles.addButton, { backgroundColor: colors.secondary }]}
+                      onPress={() => setShowCustomStudyPicker(true)}
+                    >
+                      <Icon name="plus" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                  {customStudyTopics.map((item, index) => (
+                    <View key={index} style={[styles.customTopicItem, { backgroundColor: colors.backgroundLight }]}>
+                      <Text style={[styles.customTopicText, { color: colors.text }]}>{item.topicName}</Text>
+                      <TouchableOpacity onPress={() => setCustomStudyTopics(customStudyTopics.filter((_, i) => i !== index))}>
+                        <Icon name="close" size={16} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
               </View>
-            )}
 
-            <TouchableOpacity 
-              onPress={() => setShowTimerSettings(false)}
-              style={styles.modalSaveButton}
-            >
-              <Text style={styles.modalSaveButtonText}>Tamam</Text>
-            </TouchableOpacity>
+              {/* Video Section */}
+              <View style={styles.logSection}>
+                <Text style={[styles.logSectionTitle, { color: colors.text }]}>🎥 Video</Text>
+                
+                {/* Video Time */}
+                <View style={styles.logInputGroup}>
+                  <Text style={[styles.logLabel, { color: colors.textLight }]}>Video Süresi (dakika)</Text>
+                  <View style={styles.inputWithButtons}>
+                    <TouchableOpacity 
+                      style={[styles.counterButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = Math.max(0, logVideoMinutes - 5);
+                        setLogVideoMinutes(newValue);
+                        setVideoMinutesInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="minus" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.numberInput, { backgroundColor: colors.backgroundLight, color: colors.text }]}
+                      value={videoMinutesInput}
+                      onChangeText={(text) => {
+                        setVideoMinutesInput(text);
+                        const num = parseInt(text, 10) || 0;
+                        setLogVideoMinutes(Math.max(0, num));
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                    <TouchableOpacity 
+                      style={[styles.counterButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = logVideoMinutes + 5;
+                        setLogVideoMinutes(newValue);
+                        setVideoMinutesInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="plus" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Video Topics from Daily Goal */}
+                {todayGoals.length > 0 && todayGoals[0]?.selectedTopics.length > 0 && (
+                  <View style={styles.logInputGroup}>
+                    <Text style={[styles.logLabel, { color: colors.textLight }]}>Günlük Hedef Konuları (Video)</Text>
+                    <View style={styles.topicsContainer}>
+                      {todayGoals[0].selectedTopics.map((topicId) => {
+                        const topic = courses.flatMap(c => c.topics).find(t => t.id === topicId);
+                        return topic ? (
+                          <TouchableOpacity
+                            key={topicId}
+                            style={[
+                              styles.topicItem,
+                              { 
+                                backgroundColor: logVideoTopics.includes(topicId) ? colors.secondary + '20' : colors.backgroundLight,
+                                borderColor: logVideoTopics.includes(topicId) ? colors.secondary : colors.border
+                              }
+                            ]}
+                            onPress={() => {
+                              if (logVideoTopics.includes(topicId)) {
+                                setLogVideoTopics(logVideoTopics.filter(id => id !== topicId));
+                              } else {
+                                setLogVideoTopics([...logVideoTopics, topicId]);
+                              }
+                            }}
+                          >
+                            <Icon 
+                              name={logVideoTopics.includes(topicId) ? "checkbox-marked" : "checkbox-blank-outline"} 
+                              size={20} 
+                              color={logVideoTopics.includes(topicId) ? colors.secondary : colors.textMuted} 
+                            />
+                            <Text style={[styles.topicItemText, { color: colors.text }]}>{topic.name}</Text>
+                          </TouchableOpacity>
+                        ) : null;
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Custom Video Topics */}
+                <View style={styles.logInputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={[styles.logLabel, { color: colors.textLight }]}>Özel Video Konusu</Text>
+                    <TouchableOpacity 
+                      style={[styles.addButton, { backgroundColor: colors.info }]}
+                      onPress={() => setShowCustomVideoPicker(true)}
+                    >
+                      <Icon name="plus" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                  {customVideoTopics.map((item, index) => (
+                    <View key={index} style={[styles.customTopicItem, { backgroundColor: colors.backgroundLight }]}>
+                      <Text style={[styles.customTopicText, { color: colors.text }]}>{item.topicName}</Text>
+                      <TouchableOpacity onPress={() => setCustomVideoTopics(customVideoTopics.filter((_, i) => i !== index))}>
+                        <Icon name="close" size={16} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Questions Section */}
+              <View style={styles.logSection}>
+                <Text style={[styles.logSectionTitle, { color: colors.text }]}>❓ Sorular</Text>
+                
+                {/* Question Count */}
+                <View style={styles.logInputGroup}>
+                  <Text style={[styles.logLabel, { color: colors.textLight }]}>Çözülen Soru Sayısı</Text>
+                  <View style={styles.inputWithButtons}>
+                    <TouchableOpacity 
+                      style={[styles.counterButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = Math.max(0, logQuestionCount - 5);
+                        setLogQuestionCount(newValue);
+                        setQuestionCountInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="minus" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.numberInput, { backgroundColor: colors.backgroundLight, color: colors.text }]}
+                      value={questionCountInput}
+                      onChangeText={(text) => {
+                        setQuestionCountInput(text);
+                        const num = parseInt(text, 10) || 0;
+                        setLogQuestionCount(Math.max(0, num));
+                      }}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                    <TouchableOpacity 
+                      style={[styles.counterButton, { backgroundColor: colors.border }]}
+                      onPress={() => {
+                        const newValue = logQuestionCount + 5;
+                        setLogQuestionCount(newValue);
+                        setQuestionCountInput(String(newValue));
+                      }}
+                    >
+                      <Icon name="plus" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Custom Questions from Other Courses */}
+                <View style={styles.logInputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={[styles.logLabel, { color: colors.textLight }]}>Diğer Derslerden Sorular</Text>
+                    <TouchableOpacity 
+                      style={[styles.addButton, { backgroundColor: colors.success }]}
+                      onPress={() => setShowCustomQuestionPicker(true)}
+                    >
+                      <Icon name="plus" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                  {customQuestions.map((item, index) => {
+                    const course = courses.find(c => c.id === item.courseId);
+                    return (
+                      <View key={index} style={[styles.customTopicItem, { backgroundColor: colors.backgroundLight }]}>
+                        <Text style={[styles.customTopicText, { color: colors.text }]}>
+                          {course?.name}: {item.count} soru
+                        </Text>
+                        <TouchableOpacity onPress={() => setCustomQuestions(customQuestions.filter((_, i) => i !== index))}>
+                          <Icon name="close" size={16} color={colors.danger} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowLogModal(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={saveStudyLog}
+              >
+                <Text style={styles.modalButtonText}>Kaydet</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Study Topic Picker Modal */}
+      <Modal
+        visible={showCustomStudyPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCustomStudyPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>📚 Özel Çalışma Konusu Seç</Text>
+              <TouchableOpacity onPress={() => setShowCustomStudyPicker(false)}>
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {courses.map((course) => (
+                <View key={course.id} style={styles.courseSection}>
+                  <Text style={[styles.courseSectionTitle, { color: course.color }]}>{course.name}</Text>
+                  {course.topics.map((topic) => (
+                    <TouchableOpacity
+                      key={topic.id}
+                      style={[styles.topicSelectItem, { backgroundColor: colors.backgroundLight }]}
+                      onPress={() => {
+                        const newTopic = { topicName: topic.name, courseId: course.id };
+                        if (!customStudyTopics.find(t => t.topicName === topic.name && t.courseId === course.id)) {
+                          setCustomStudyTopics([...customStudyTopics, newTopic]);
+                        }
+                        setShowCustomStudyPicker(false);
+                      }}
+                    >
+                      <Text style={[styles.topicSelectText, { color: colors.text }]}>{topic.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Video Topic Picker Modal */}
+      <Modal
+        visible={showCustomVideoPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCustomVideoPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>🎥 Özel Video Konusu Seç</Text>
+              <TouchableOpacity onPress={() => setShowCustomVideoPicker(false)}>
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {courses.map((course) => (
+                <View key={course.id} style={styles.courseSection}>
+                  <Text style={[styles.courseSectionTitle, { color: course.color }]}>{course.name}</Text>
+                  {course.topics.map((topic) => (
+                    <TouchableOpacity
+                      key={topic.id}
+                      style={[styles.topicSelectItem, { backgroundColor: colors.backgroundLight }]}
+                      onPress={() => {
+                        const newTopic = { topicName: topic.name, courseId: course.id };
+                        if (!customVideoTopics.find(t => t.topicName === topic.name && t.courseId === course.id)) {
+                          setCustomVideoTopics([...customVideoTopics, newTopic]);
+                        }
+                        setShowCustomVideoPicker(false);
+                      }}
+                    >
+                      <Text style={[styles.topicSelectText, { color: colors.text }]}>{topic.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Question Picker Modal */}
+      <Modal
+        visible={showCustomQuestionPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCustomQuestionPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>❓ Diğer Derslerden Soru Ekle</Text>
+              <TouchableOpacity onPress={() => setShowCustomQuestionPicker(false)}>
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {courses.map((course) => (
+                <TouchableOpacity
+                  key={course.id}
+                  style={[styles.courseSelectItem, { backgroundColor: colors.backgroundLight, borderLeftColor: course.color }]}
+                  onPress={() => {
+                    const existingQuestion = customQuestions.find(q => q.courseId === course.id);
+                    if (existingQuestion) {
+                      setCustomQuestions(customQuestions.map(q => 
+                        q.courseId === course.id ? { ...q, count: q.count + 5 } : q
+                      ));
+                    } else {
+                      setCustomQuestions([...customQuestions, { courseId: course.id, count: 5 }]);
+                    }
+                    setShowCustomQuestionPicker(false);
+                  }}
+                >
+                  <Icon name={course.icon} size={24} color={course.color} />
+                  <Text style={[styles.courseSelectText, { color: colors.text }]}>{course.name}</Text>
+                  <Text style={[styles.courseSelectCount, { color: colors.textLight }]}>
+                    +5 soru
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Schedule Edit Modal */}
+      <Modal
+        visible={showScheduleEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowScheduleEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Günü Düzenle</Text>
+              <TouchableOpacity
+                style={[styles.modalCloseButton, { backgroundColor: colors.danger }]}
+                onPress={() => setShowScheduleEditModal(false)}
+              >
+                <Icon name="close" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScrollView}>
+              {/* Day Selection Dropdown */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Hangi Günü Düzenlemek İstiyorsunuz?</Text>
+                <View style={[styles.dropdownContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayDropdown}>
+                    {defaultWeeklySchedule.map((dayOption) => (
+                      <TouchableOpacity
+                        key={dayOption.day}
+                        style={[
+                          styles.dayOption,
+                          editDayName === dayOption.day ? styles.dayOptionSelected : styles.dayOptionUnselected,
+                          { 
+                            borderColor: editDayName === dayOption.day ? colors.primary : colors.border
+                          }
+                        ]}
+                        onPress={() => setEditDayName(dayOption.day)}
+                      >
+                        <Icon name={dayOption.icon} size={20} color={editDayName === dayOption.day ? 'white' : colors.textLight} />
+                        <Text style={[
+                          styles.dayOptionText, 
+                          editDayName === dayOption.day ? styles.dayTextSelected : styles.dayTextUnselected,
+                          editDayName === dayOption.day ? styles.boldText : styles.normalText
+                        ]}>
+                          {dayOption.day}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+
+              {/* Subject Name Input */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Ders Adı</Text>
+                <TextInput
+                  style={[styles.textInput, { 
+                    backgroundColor: colors.background, 
+                    color: colors.text,
+                    borderColor: colors.border 
+                  }]}
+                  value={editSubjectName}
+                  onChangeText={setEditSubjectName}
+                  placeholder="Özel ders adı girin veya aşağıdan seçin"
+                  placeholderTextColor={colors.textLight}
+                />
+              </View>
+
+              {/* Course Selection */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Veya Ders Seçin</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.courseSelector}>
+                  {courses.map((course) => (
+                    <TouchableOpacity
+                      key={course.id}
+                      style={[
+                        styles.courseOption,
+                        { 
+                          backgroundColor: editSelectedCourse.id === course.id ? course.color + '20' : colors.background,
+                          borderColor: editSelectedCourse.id === course.id ? course.color : colors.border
+                        }
+                      ]}
+                      onPress={() => {
+                        setEditSelectedCourse(course);
+                        setEditSubjectName(''); // Clear custom name when selecting a course
+                      }}
+                    >
+                      <Icon name={course.icon} size={24} color={course.color} />
+                      <Text style={[
+                        styles.courseOptionText, 
+                        { 
+                          color: editSelectedCourse.id === course.id ? course.color : colors.text,
+                        },
+                        editSelectedCourse.id === course.id ? styles.boldText : styles.normalText
+                      ]}>
+                        {course.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.textMuted }]}
+                onPress={() => setShowScheduleEditModal(false)}
+              >
+                <Text style={styles.modalButtonText}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.success }]}
+                onPress={saveScheduleChanges}
+              >
+                <Text style={styles.modalButtonText}>Kaydet</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cross-Course Topic Picker Modal */}
+      <Modal
+        visible={showCrossTopicPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCrossTopicPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>📚 Diğer Derslerden Konu Seç</Text>
+              <TouchableOpacity onPress={() => setShowCrossTopicPicker(false)}>
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {courses.filter(course => course.name !== todaySubject?.subject).map((course) => (
+                <View key={course.id} style={styles.courseSection}>
+                  <Text style={[styles.courseSectionTitle, { color: course.color }]}>{course.name}</Text>
+                  {course.topics.map((topic) => (
+                    <TouchableOpacity
+                      key={topic.id}
+                      style={[
+                        styles.topicSelectItem, 
+                        { 
+                          backgroundColor: selectedTopics.includes(topic.id) ? course.color + '20' : colors.backgroundLight,
+                          borderColor: selectedTopics.includes(topic.id) ? course.color : colors.border
+                        }
+                      ]}
+                      onPress={() => toggleTopicSelection(topic.id)}
+                    >
+                      <Icon 
+                        name={selectedTopics.includes(topic.id) ? "checkbox-marked" : "checkbox-blank-outline"} 
+                        size={20} 
+                        color={selectedTopics.includes(topic.id) ? course.color : colors.textMuted} 
+                      />
+                      <Text style={[styles.topicSelectText, { color: colors.text }]}>{topic.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowCrossTopicPicker(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>Kapat</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -889,1685 +1804,2778 @@ function HomeScreen({ weeklySchedule }: { weeklySchedule: typeof defaultWeeklySc
   );
 }
 
-// Dersler Ekranı
-function SubjectsScreen() {
-  interface Subject {
-    id: string;
-    name: string;
-    icon: string;
-    color: string;
-    topics: string[];
-  }
-  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-  const [progress, setProgress] = useState<Record<string, { [topicIndex: number]: TopicProgress }>>({});
-  const [customTopics, setCustomTopics] = useState<Record<string, string[]>>({});
-  const [isEditingTopics, setIsEditingTopics] = useState(false);
-  const [newTopicText, setNewTopicText] = useState('');
+// Weekly Schedule
+const defaultWeeklySchedule = [
+  { day: 'Pazartesi', subject: 'Matematik', icon: 'calculator', color: '#FF6B35' },
+  { day: 'Salı', subject: 'Türkçe', icon: 'book-open', color: '#2E8B57' },
+  { day: 'Çarşamba', subject: 'Tarih', icon: 'history', color: '#8B4513' },
+  { day: 'Perşembe', subject: 'Coğrafya', icon: 'earth', color: '#4682B4' },
+  { day: 'Cuma', subject: 'Vatandaşlık', icon: 'account-group', color: '#9932CC' },
+  { day: 'Cumartesi', subject: 'Genel Kültür', icon: 'lightbulb', color: '#FF1493' },
+  { day: 'Pazar', subject: 'Deneme Sınavı', icon: 'clipboard-text', color: '#FF4500' },
+];
+
+// Default Courses Data
+const defaultCourses: Course[] = [
+  {
+    id: '1',
+    name: 'Türkçe',
+    icon: 'book-open',
+    color: '#2E8B57',
+    topics: [
+      { id: '1-1', name: 'Sözcükte Anlam', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-2', name: 'Cümlede Anlam', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-3', name: 'Paragrafta Anlam', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-4', name: 'Ses Bilgisi', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-5', name: 'Yapı Bilgisi', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-6', name: 'Sözcük Türleri', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-7', name: 'Cümle Bilgisi', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-8', name: 'Yazım Kuralları', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-9', name: 'Noktalama İşaretleri', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '1-10', name: 'Anlatım Bozuklukları', courseId: '1', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+    ],
+    totalTopics: 10,
+    completedTopics: 0,
+  },
+  {
+    id: '2',
+    name: 'Matematik',
+    icon: 'calculator',
+    color: '#FF6B35',
+    topics: [
+      { id: '2-1', name: 'Temel Kavramlar', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-2', name: 'Sayılar', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-3', name: 'Ebob - Ekok', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-4', name: 'Asal Çarpanlara Ayırma', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-5', name: 'Denklemler', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-6', name: 'Rasyonel Sayılar', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-7', name: 'Eşitsizlik - Mutlak Değer', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-8', name: 'Üslü Sayılar', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-9', name: 'Köklü Sayılar', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-10', name: 'Çarpanlara Ayırma', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-11', name: 'Oran - Orantı', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-12', name: 'Problemler', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-13', name: 'Kümeler', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-14', name: 'İşlem - Modüler Aritmetik', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-15', name: 'Permütasyon - Kombinasyon - Olasılık', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-16', name: 'Tablo ve Grafikler', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '2-17', name: 'Sayısal Mantık', courseId: '2', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+    ],
+    totalTopics: 17,
+    completedTopics: 0,
+  },
+  {
+    id: '3',
+    name: 'Geometri',
+    icon: 'shape',
+    color: '#9932CC',
+    topics: [
+      { id: '3-1', name: 'Geometrik Kavramlar Ve Doğruda Açılar', courseId: '3', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '3-2', name: 'Çokgenler Ve Dörtgenler', courseId: '3', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '3-3', name: 'Çember Ve Daire', courseId: '3', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '3-4', name: 'Analitik Geometri', courseId: '3', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '3-5', name: 'Katı Cisimler', courseId: '3', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+    ],
+    totalTopics: 5,
+    completedTopics: 0,
+  },
+  {
+    id: '4',
+    name: 'Tarih',
+    icon: 'history',
+    color: '#8B4513',
+    topics: [
+      { id: '4-1', name: 'İslamiyet Öncesi Türk Tarihi', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-2', name: 'İlk Türk - İslam Devletleri ve Beylikleri', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-3', name: 'Osmanlı Devleti Kuruluş ve Yükselme Dönemleri', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-4', name: 'Osmanlı Devleti\'nde Kültür ve Uygarlık', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-5', name: 'XVII. Yüzyılda Osmanlı Devleti (Duraklama Dönemi)', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-6', name: 'XVIII. Yüzyılda Osmanlı Devleti (Gerileme Dönemi)', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-7', name: 'XIX. Yüzyılda Osmanlı Devleti (Dağılma Dönemi)', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-8', name: 'XX. Yüzyılda Osmanlı Devleti', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-9', name: 'Kurtuluş Savaşı Hazırlık Dönemi', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-10', name: 'I. TBMM Dönemi', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-11', name: 'Kurtuluş Savaşı Muharebeler Dönemi', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-12', name: 'Atatürk İnkılapları', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-13', name: 'Atatürk İlkeleri', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-14', name: 'Partiler ve Partileşme Dönemi (İç Politika)', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-15', name: 'Atatürk Dönemi Türk Dış Politikası', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-16', name: 'Atatürk Sonrası Dönem', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '4-17', name: 'Atatürk\'ün Hayatı ve Kişiliği', courseId: '4', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+    ],
+    totalTopics: 17,
+    completedTopics: 0,
+  },
+  {
+    id: '5',
+    name: 'Coğrafya',
+    icon: 'earth',
+    color: '#4682B4',
+    topics: [
+      { id: '5-1', name: 'Türkiye\'nin Coğrafi Konumu', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '5-2', name: 'Türkiye\'nin Yerşekilleri ve Özellikleri', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '5-3', name: 'Türkiye\'nin İklimi ve Bitki Örtüsü', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '5-4', name: 'Türkiye\'de Nüfus ve Yerleşme', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '5-5', name: 'Türkiye\'de Tarım, Hayvancılık ve Ormancılık', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '5-6', name: 'Türkiye\'de Madenler, Enerji Kaynakları ve Sanayi', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '5-7', name: 'Türkiye\'de Ulaşım, Ticaret ve Turizm', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '5-8', name: 'Türkiye\'nin Coğrafi Bölgeleri', courseId: '5', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+    ],
+    totalTopics: 8,
+    completedTopics: 0,
+  },
+  {
+    id: '6',
+    name: 'Vatandaşlık',
+    icon: 'account-group',
+    color: '#DC3545',
+    topics: [
+      { id: '6-1', name: 'Hukukun Temel Kavramları', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-2', name: 'Devlet Biçimleri Demokrasi Ve Kuvvetler Ayrılığı', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-3', name: 'Anayasa Hukukuna Giriş Temel Kavramlar Ve Türk Anayasa Tarihi', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-4', name: '1982 Anayasasının Temel İlkeleri', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-5', name: 'Yasama', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-6', name: 'Yürütme', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-7', name: 'Yargı', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-8', name: 'Temel Hak Ve Hürriyetler', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-9', name: 'İdare Hukuku', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-10', name: 'Uluslararası Kuruluşlar Ve Güncel Olaylar', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+      { id: '6-11', name: '1982 Anayasası Tam Metni', courseId: '6', completion: { konu: false, video: false, soru: false, tamamlandi: false }, notes: '' },
+    ],
+    totalTopics: 11,
+    completedTopics: 0,
+  },
+];
+
+// Courses Screen Component (formerly Progress Screen)
+function CoursesScreen() {
+  const [courses, setCourses] = useState<Course[]>(defaultCourses);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [topicManagementModal, setTopicManagementModal] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [newTopicName, setNewTopicName] = useState('');
+  const [isEditingTopic, setIsEditingTopic] = useState(false);
+
+  // Load courses data
+  const loadCoursesData = async () => {
+    try {
+      const coursesData = await AsyncStorage.getItem('courses');
+      if (coursesData) {
+        setCourses(JSON.parse(coursesData));
+      } else {
+        // Initialize with default courses
+        await AsyncStorage.setItem('courses', JSON.stringify(defaultCourses));
+        setCourses(defaultCourses);
+      }
+    } catch (error) {
+      console.log('Error loading courses:', error);
+      setCourses(defaultCourses);
+    }
+  };
+
+  // Save courses data
+  const saveCoursesData = async (updatedCourses: Course[]) => {
+    try {
+      await AsyncStorage.setItem('courses', JSON.stringify(updatedCourses));
+      setCourses(updatedCourses);
+      
+      // Update selectedCourse if it exists
+      if (selectedCourse) {
+        const updatedSelectedCourse = updatedCourses.find(course => course.id === selectedCourse.id);
+        if (updatedSelectedCourse) {
+          setSelectedCourse(updatedSelectedCourse);
+        }
+      }
+    } catch (error) {
+      console.log('Error saving courses:', error);
+    }
+  };
+
+  // Toggle completion state
+  const toggleCompletion = async (courseId: string, topicId: string, type: 'konu' | 'video' | 'soru' | 'tamamlandi') => {
+    const updatedCourses = courses.map(course => {
+      if (course.id === courseId) {
+        const updatedTopics = course.topics.map(topic => {
+          if (topic.id === topicId) {
+            const newCompletion = {
+              ...topic.completion,
+              [type]: !topic.completion[type]
+            };
+            
+            // Auto-check "tamamlandi" if all others are checked
+            if (type !== 'tamamlandi' && newCompletion.konu && newCompletion.video && newCompletion.soru) {
+              newCompletion.tamamlandi = true;
+            }
+            
+            // Auto-uncheck "tamamlandi" if any other is unchecked
+            if (type !== 'tamamlandi' && !newCompletion[type]) {
+              newCompletion.tamamlandi = false;
+            }
+
+            return {
+              ...topic,
+              completion: newCompletion,
+              lastStudied: new Date().toISOString(),
+            };
+          }
+          return topic;
+        });
+
+        const completedTopics = updatedTopics.filter(t => t.completion.tamamlandi).length;
+
+        return {
+          ...course,
+          topics: updatedTopics,
+          completedTopics,
+        };
+      }
+      return course;
+    });
+
+    await saveCoursesData(updatedCourses);
+  };
+
+  // Topic Management Functions
+  const renameTopic = async (courseId: string, topicId: string, newName: string) => {
+    if (!newName.trim()) return;
+    
+    const updatedCourses = courses.map(course => {
+      if (course.id === courseId) {
+        const updatedTopics = course.topics.map(topic => {
+          if (topic.id === topicId) {
+            return { ...topic, name: newName.trim() };
+          }
+          return topic;
+        });
+        return { ...course, topics: updatedTopics };
+      }
+      return course;
+    });
+
+    await saveCoursesData(updatedCourses);
+  };
+
+  const addTopic = async (courseId: string, topicName: string) => {
+    if (!topicName.trim()) return;
+    
+    const updatedCourses = courses.map(course => {
+      if (course.id === courseId) {
+        const newTopicId = `${courseId}-${course.topics.length + 1}`;
+        const newTopic: Topic = {
+          id: newTopicId,
+          name: topicName.trim(),
+          courseId: courseId,
+          completion: { konu: false, video: false, soru: false, tamamlandi: false },
+          notes: ''
+        };
+        
+        const updatedTopics = [...course.topics, newTopic];
+        return {
+          ...course,
+          topics: updatedTopics,
+          totalTopics: updatedTopics.length
+        };
+      }
+      return course;
+    });
+
+    await saveCoursesData(updatedCourses);
+  };
+
+  const removeTopic = async (courseId: string, topicId: string) => {
+    const updatedCourses = courses.map(course => {
+      if (course.id === courseId) {
+        const updatedTopics = course.topics.filter(topic => topic.id !== topicId);
+        const completedTopics = updatedTopics.filter(t => t.completion.tamamlandi).length;
+        
+        return {
+          ...course,
+          topics: updatedTopics,
+          totalTopics: updatedTopics.length,
+          completedTopics: completedTopics
+        };
+      }
+      return course;
+    });
+
+    await saveCoursesData(updatedCourses);
+  };
+
+  // Helper functions for topic management modal
+  const openTopicManagementModal = (topic: Topic | null, isEditing = false) => {
+    setSelectedTopic(topic);
+    setNewTopicName(isEditing && topic ? topic.name : '');
+    setIsEditingTopic(isEditing);
+    setTopicManagementModal(true);
+  };
+
+  const handleTopicManagement = async () => {
+    if (!selectedCourse) return;
+
+    if (isEditingTopic && selectedTopic) {
+      // Rename topic
+      await renameTopic(selectedCourse.id, selectedTopic.id, newTopicName);
+    } else {
+      // Add new topic
+      await addTopic(selectedCourse.id, newTopicName);
+    }
+
+    setTopicManagementModal(false);
+    setSelectedTopic(null);
+    setNewTopicName('');
+    setIsEditingTopic(false);
+  };
+
+  const handleRemoveTopic = async () => {
+    if (!selectedTopic || !selectedCourse) return;
+
+    await removeTopic(selectedCourse.id, selectedTopic.id);
+    setTopicManagementModal(false);
+    setSelectedTopic(null);
+    setNewTopicName('');
+    setIsEditingTopic(false);
+  };
 
   useEffect(() => {
-    loadProgress();
-    loadCustomTopics();
+    loadCoursesData();
   }, []);
 
-  const loadProgress = async () => {
-    try {
-      const data = await AsyncStorage.getItem('progress');
-      if (data) {
-        setProgress(JSON.parse(data));
-      }
-    } catch (error) {
-      console.log('Progress yüklenemedi:', error);
-    }
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadCoursesData();
+    setRefreshing(false);
   };
 
-  const loadCustomTopics = async () => {
-    try {
-      const data = await AsyncStorage.getItem('customTopics');
-      if (data) {
-        setCustomTopics(JSON.parse(data));
-      }
-    } catch (error) {
-      console.log('Custom topics yüklenemedi:', error);
-    }
+  const getTotalProgress = () => {
+    const totalTopics = courses.reduce((sum, course) => sum + course.totalTopics, 0);
+    const completedTopics = courses.reduce((sum, course) => sum + course.completedTopics, 0);
+    return totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
   };
 
-  const saveCustomTopics = async (newCustomTopics: Record<string, string[]>) => {
-    try {
-      await AsyncStorage.setItem('customTopics', JSON.stringify(newCustomTopics));
-      setCustomTopics(newCustomTopics);
-    } catch (error) {
-      console.log('Custom topics kaydedilemedi:', error);
-    }
-  };
-
-  const getTopicsForSubject = (subjectId: string): string[] => {
-    const defaultTopics = subjects.find(s => s.id === subjectId)?.topics || [];
-    return customTopics[subjectId] || defaultTopics;
-  };
-
-  const addCustomTopic = (subjectId: string, topicName: string) => {
-    if (topicName.trim()) {
-      const currentTopics = getTopicsForSubject(subjectId);
-      const newTopics = [...currentTopics, topicName.trim()];
-      const newCustomTopics = { ...customTopics, [subjectId]: newTopics };
-      saveCustomTopics(newCustomTopics);
-      setNewTopicText('');
-    }
-  };
-
-  const removeCustomTopic = (subjectId: string, topicIndex: number) => {
-    const currentTopics = getTopicsForSubject(subjectId);
-    const newTopics = currentTopics.filter((_, index) => index !== topicIndex);
-    const newCustomTopics = { ...customTopics, [subjectId]: newTopics };
-    saveCustomTopics(newCustomTopics);
-    
-    // Also clean up progress for removed topic
-    const newProgress = { ...progress };
-    if (newProgress[subjectId]) {
-      delete newProgress[subjectId][topicIndex];
-      // Reindex remaining topics
-      const reindexedProgress: { [topicIndex: number]: TopicProgress } = {};
-      Object.keys(newProgress[subjectId])
-        .map(Number)
-        .filter(index => index < topicIndex)
-        .forEach(index => {
-          reindexedProgress[index] = newProgress[subjectId][index];
-        });
-      Object.keys(newProgress[subjectId])
-        .map(Number)
-        .filter(index => index > topicIndex)
-        .forEach(index => {
-          reindexedProgress[index - 1] = newProgress[subjectId][index];
-        });
-      newProgress[subjectId] = reindexedProgress;
-      saveProgress(newProgress);
-    }
-  };
-
-  interface TopicProgress {
-    studied: boolean;
-    videoWatched: boolean;
-    questionsSolved: boolean;
-    completed: boolean;
-  }
-
-  interface SubjectProgress {
-    [topicIndex: number]: TopicProgress;
-  }
-
-  interface ProgressData {
-    [subjectId: string]: SubjectProgress;
-  }
-
-  const updateDailyGoalsProgress = React.useCallback(async (progressData: ProgressData) => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const goalsData = await AsyncStorage.getItem('dailyGoals');
-      
-      if (!goalsData) return;
-      
-      let dailyGoals: DailyGoal[] = JSON.parse(goalsData);
-      let updated = false;
-
-      // Update progress for each subject's goals
-      subjects.forEach(subject => {
-        const goalIndex = dailyGoals.findIndex(goal => 
-          goal.date === today && goal.subjectId === subject.id
-        );
-        
-        if (goalIndex !== -1) {
-          const subjectProgress = progressData[subject.id];
-          if (subjectProgress) {
-            let videos = 0;
-            let questions = 0;
-            let topics = 0;
-            let studyTime = 0;
-
-            // Count progress for this subject
-            Object.keys(subjectProgress).forEach(topicIndexStr => {
-              const topicIndex = Number(topicIndexStr);
-              const topicData = subjectProgress[topicIndex];
-              
-              if (topicData.videoWatched) videos++;
-              if (topicData.questionsSolved) questions++;
-              if (topicData.studied) topics++;
-              if (topicData.completed) studyTime += 30; // Estimate 30 min per completed topic
-            });
-
-            // Update the goal progress
-            dailyGoals[goalIndex].progress = {
-              videos,
-              questions,
-              topics,
-              studyTime,
-            };
-
-            // Check if goal is completed
-            const goal = dailyGoals[goalIndex];
-            goal.completed = (
-              goal.progress.videos >= goal.goals.videos &&
-              goal.progress.questions >= goal.goals.questions &&
-              goal.progress.topics >= goal.goals.topics &&
-              goal.progress.studyTime >= goal.goals.studyTime
-            );
-
-            updated = true;
-          }
-        }
-      });
-
-      if (updated) {
-        await AsyncStorage.setItem('dailyGoals', JSON.stringify(dailyGoals));
-      }
-    } catch (error) {
-      console.log('Daily goals progress update failed:', error);
-    }
-  }, []);
-
-  const updateDailyLogFromProgress = React.useCallback(async (progressData: ProgressData) => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const existingLogs = await AsyncStorage.getItem('dailyLogs');
-      let dailyLogs: DailyLogEntry[] = existingLogs ? JSON.parse(existingLogs) : [];
-      
-      // Find or create today's log
-      let todayLogIndex = dailyLogs.findIndex(log => log.date === today);
-      let todayLog: DailyLogEntry;
-      
-      if (todayLogIndex === -1) {
-        // Create new log for today
-        todayLog = {
-          date: today,
-          studyTime: 0,
-          completedTopics: [],
-          totalProgress: {
-            studied: 0,
-            videosWatched: 0,
-            questionsSolved: 0,
-            completed: 0,
-          },
-          notes: '',
-          mood: 'good',
-          goals: {
-            planned: 5,
-            achieved: 0,
-          },
-        };
-        dailyLogs.push(todayLog);
-        todayLogIndex = dailyLogs.length - 1;
-      } else {
-        todayLog = dailyLogs[todayLogIndex];
-      }
-
-      // Calculate current progress from all subjects
-      let totalStudied = 0;
-      let totalVideos = 0;
-      let totalQuestions = 0;
-      let totalCompleted = 0;
-      const completedTopicsToday: any[] = [];
-
-      subjects.forEach(subject => {
-        const subjectProgress = progressData[subject.id];
-        if (subjectProgress) {
-          Object.keys(subjectProgress).forEach(topicIndexStr => {
-            const topicIndex = Number(topicIndexStr);
-            const topicData = subjectProgress[topicIndex];
-            
-            if (topicData.studied) {
-              totalStudied++;
-              completedTopicsToday.push({
-                subjectId: subject.id,
-                topicIndex,
-                topicName: subject.topics[topicIndex] || 'Unknown Topic',
-                timeSpent: 30, // Estimate 30 minutes per topic
-                type: 'studied' as const,
-              });
-            }
-            if (topicData.videoWatched) {
-              totalVideos++;
-              completedTopicsToday.push({
-                subjectId: subject.id,
-                topicIndex,
-                topicName: subject.topics[topicIndex] || 'Unknown Topic',
-                timeSpent: 20, // Estimate 20 minutes per video
-                type: 'video' as const,
-              });
-            }
-            if (topicData.questionsSolved) {
-              totalQuestions++;
-              completedTopicsToday.push({
-                subjectId: subject.id,
-                topicIndex,
-                topicName: subject.topics[topicIndex] || 'Unknown Topic',
-                timeSpent: 15, // Estimate 15 minutes per question set
-                type: 'questions' as const,
-              });
-            }
-            if (topicData.completed) {
-              totalCompleted++;
-            }
-          });
-        }
-      });
-
-      // Update today's log
-      todayLog.totalProgress = {
-        studied: totalStudied,
-        videosWatched: totalVideos,
-        questionsSolved: totalQuestions,
-        completed: totalCompleted,
-      };
-      todayLog.completedTopics = completedTopicsToday;
-      todayLog.studyTime = completedTopicsToday.reduce((sum, topic) => sum + topic.timeSpent, 0);
-      todayLog.goals.achieved = totalCompleted;
-
-      dailyLogs[todayLogIndex] = todayLog;
-      
-      // Sort logs by date (newest first)
-      dailyLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      await AsyncStorage.setItem('dailyLogs', JSON.stringify(dailyLogs));
-      
-      // Also update daily goals progress
-      await updateDailyGoalsProgress(progressData);
-    } catch (error) {
-      console.log('Daily log update failed:', error);
-    }
-  }, [updateDailyGoalsProgress]);
-
-  const saveProgress = React.useCallback(async (newProgress: ProgressData) => {
-    try {
-      await AsyncStorage.setItem('progress', JSON.stringify(newProgress));
-      setProgress(newProgress);
-      
-      // Auto-generate daily log entry when progress is saved
-      await updateDailyLogFromProgress(newProgress);
-    } catch (error) {
-      console.log('Progress kaydedilemedi:', error);
-    }
-  }, [updateDailyLogFromProgress]);
-
-  interface ToggleProgressField {
-    studied: boolean;
-    videoWatched: boolean;
-    questionsSolved: boolean;
-    completed: boolean;
-  }
-
-  type ProgressField = keyof ToggleProgressField;
-
-  const toggleProgress = React.useCallback((
-    subjectId: string,
-    topicIndex: number,
-    field: ProgressField
-  ) => {
-    const newProgress: ProgressState = {...progress};
-    if (!newProgress[subjectId]) {
-      newProgress[subjectId] = {};
-    }
-    if (!newProgress[subjectId][topicIndex]) {
-      newProgress[subjectId][topicIndex] = {
-        studied: false,
-        videoWatched: false,
-        questionsSolved: false,
-        completed: false,
-      };
-    }
-    newProgress[subjectId][topicIndex][field] =
-      !newProgress[subjectId][topicIndex][field];
-    saveProgress(newProgress);
-  }, [progress, saveProgress]);
-
-  interface Subject {
-    id: string;
-    name: string;
-    icon: string;
-    color: string;
-    topics: string[];
-  }
-
-  interface TopicProgress {
-    studied: boolean;
-    videoWatched: boolean;
-    questionsSolved: boolean;
-    completed: boolean;
-  }
-
-  interface ProgressState {
-    [subjectId: string]: {
-      [topicIndex: number]: TopicProgress;
-    };
-  }
-
-  const getSubjectProgress = (subjectId: string): number => {
-    const subjectTopics: number = getTopicsForSubject(subjectId).length;
-    let completed = 0;
-    if ((progress as ProgressState)[subjectId]) {
-      Object.keys((progress as ProgressState)[subjectId]).forEach((topicIndex: string) => {
-        if ((progress as ProgressState)[subjectId][Number(topicIndex)].completed) {
-          completed++;
-        }
-      });
-    }
-    return subjectTopics > 0 ? Math.round((completed / subjectTopics) * 100) : 0;
-  };
-
-  if (selectedSubject) {
+  if (selectedCourse) {
+    // Topic Detail View with Table Layout
     return (
       <View style={styles.container}>
-        <View style={styles.subjectHeader}>
-          <TouchableOpacity onPress={() => setSelectedSubject(null)}>
-            <Icon name="arrow-left" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.subjectHeaderTitle}>{selectedSubject.name}</Text>
-          <View style={styles.subjectHeaderActions}>
-            <TouchableOpacity 
-              onPress={() => setIsEditingTopics(!isEditingTopics)}
-              style={styles.editTopicsButton}
-            >
-              <Icon 
-                name={isEditingTopics ? "check" : "pencil"} 
-                size={20} 
-                color={isEditingTopics ? colors.success : colors.primary} 
-              />
-            </TouchableOpacity>
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressBadgeText}>
-                {getSubjectProgress(selectedSubject.id)}%
-              </Text>
+        <View style={[styles.modernHeader, { backgroundColor: selectedCourse.color }]}>
+          <View style={styles.headerGradientOverlay}>
+            <View style={styles.headerContent}>
+              <TouchableOpacity onPress={() => setSelectedCourse(null)} style={styles.backButton}>
+                <Icon name="arrow-left" size={24} color="white" />
+              </TouchableOpacity>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.modernHeaderTitle}>{selectedCourse.name}</Text>
+                <Text style={styles.modernHeaderSubtitle}>
+                  {selectedCourse.completedTopics}/{selectedCourse.totalTopics} Konu Tamamlandı
+                </Text>
+              </View>
+              <View style={styles.headerStats}>
+                <View style={styles.headerStatItem}>
+                  <Text style={styles.headerStatNumber}>
+                    {Math.round((selectedCourse.completedTopics / selectedCourse.totalTopics) * 100)}%
+                  </Text>
+                  <Text style={styles.headerStatLabel}>Tamamlandı</Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
-        <ScrollView style={styles.topicList}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableCell, styles.headerTopicCell]}>Konu</Text>
-            <View style={styles.headerIconCell}>
-              <Icon
-                name="book-open-variant"
-                size={22}
-                color={colors.backgroundLight}
-              />
-              <Text style={styles.headerIconLabel}>Ders</Text>
-            </View>
-            <View style={styles.headerIconCell}>
-              <Icon
-                name="video"
-                size={22}
-                color={colors.backgroundLight}
-              />
-              <Text style={styles.headerIconLabel}>Video</Text>
-            </View>
-            <View style={styles.headerIconCell}>
-              <Icon
-                name="file-document-edit"
-                size={22}
-                color={colors.backgroundLight}
-              />
-              <Text style={styles.headerIconLabel}>Test</Text>
-            </View>
-            <View style={styles.headerIconCell}>
-              <Icon
-                name="check-circle"
-                size={22}
-                color={colors.backgroundLight}
-              />
-              <Text style={styles.headerIconLabel}>Tamam</Text>
-            </View>
+
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.homeContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={selectedCourse.color}
+              colors={[selectedCourse.color]}
+            />
+          }
+        >
+          {/* Table Header */}
+          <View style={[styles.tableHeader, { backgroundColor: colors.cardSecondary }]}>
+            <Text style={[styles.tableHeaderText, styles.topicNameColumn, { color: colors.text }]}>Konu Adı</Text>
+            <Text style={[styles.tableHeaderText, styles.checkboxColumn, { color: colors.text }]}>Konu</Text>
+            <Text style={[styles.tableHeaderText, styles.checkboxColumn, { color: colors.text }]}>Video</Text>
+            <Text style={[styles.tableHeaderText, styles.checkboxColumn, { color: colors.text }]}>Soru</Text>
+            <Text style={[styles.tableHeaderText, styles.checkboxColumn, { color: colors.text }]}>Bitir</Text>
           </View>
-          {getTopicsForSubject(selectedSubject.id).map((topic, index) => {
-            const topicProgress = progress[selectedSubject.id]?.[index] || {
-              studied: false,
-              videoWatched: false,
-              questionsSolved: false,
-              completed: false,
-            };
-            const isLastRow = index === getTopicsForSubject(selectedSubject.id).length - 1;
-            return (
-              <View key={index} style={[
-                styles.tableRow,
-                isLastRow && !isEditingTopics && styles.lastTableRow
-              ]}>
-                <View style={styles.topicCellContainer}>
-                  <Text style={[
-                    styles.tableCell, 
-                    styles.topicCell,
-                    topicProgress.completed && styles.completedTopicText
-                  ]}>
-                    {topic}
-                  </Text>
-                  {isEditingTopics && (
-                    <TouchableOpacity
-                      onPress={() => removeCustomTopic(selectedSubject.id, index)}
-                      style={styles.deleteTopicButton}
-                    >
-                      <Icon name="delete" size={18} color={colors.danger} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+
+          {/* Topic Rows */}
+          {selectedCourse.topics.map((topic, index) => (
+            <View key={topic.id} style={[
+              styles.tableRow, 
+              { backgroundColor: index % 2 === 0 ? colors.card : colors.backgroundLight }
+            ]}>
+              <View style={[styles.topicNameColumn, styles.topicNameRow]}>
+                <Text style={[styles.topicNameTextFlex, { color: colors.text }]} numberOfLines={2}>
+                  {topic.name}
+                </Text>
                 <TouchableOpacity
-                  onPress={() =>
-                    toggleProgress(selectedSubject.id, index, 'studied')
-                  }
-                  style={[
-                    styles.iconCell,
-                    topicProgress.studied && styles.checkboxActive
-                  ]}>
-                  <Icon
-                    name={
-                      topicProgress.studied
-                        ? 'checkbox-marked-circle'
-                        : 'checkbox-blank-circle-outline'
-                    }
-                    size={22}
-                    color={topicProgress.studied ? colors.success : colors.border}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() =>
-                    toggleProgress(selectedSubject.id, index, 'videoWatched')
-                  }
-                  style={[
-                    styles.iconCell,
-                    topicProgress.videoWatched && styles.checkboxActiveVideo
-                  ]}>
-                  <Icon
-                    name={
-                      topicProgress.videoWatched
-                        ? 'checkbox-marked-circle'
-                        : 'checkbox-blank-circle-outline'
-                    }
-                    size={22}
-                    color={
-                      topicProgress.videoWatched ? colors.primary : colors.border
-                    }
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() =>
-                    toggleProgress(selectedSubject.id, index, 'questionsSolved')
-                  }
-                  style={[
-                    styles.iconCell,
-                    topicProgress.questionsSolved && styles.checkboxActiveQuestion
-                  ]}>
-                  <Icon
-                    name={
-                      topicProgress.questionsSolved
-                        ? 'checkbox-marked-circle'
-                        : 'checkbox-blank-circle-outline'
-                    }
-                    size={22}
-                    color={
-                      topicProgress.questionsSolved ? colors.warning : colors.border
-                    }
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() =>
-                    toggleProgress(selectedSubject.id, index, 'completed')
-                  }
-                  style={[
-                    styles.iconCell,
-                    topicProgress.completed && styles.checkboxActiveCompleted
-                  ]}>
-                  <Icon
-                    name={
-                      topicProgress.completed
-                        ? 'checkbox-marked-circle'
-                        : 'checkbox-blank-circle-outline'
-                    }
-                    size={22}
-                    color={
-                      topicProgress.completed ? colors.secondary : colors.border
-                    }
-                  />
+                  style={styles.topicMenuButton}
+                  onPress={() => openTopicManagementModal(topic, true)}
+                >
+                  <Icon name="dots-vertical" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-            );
-          })}
-          {isEditingTopics && (
-            <View style={[styles.tableRow, styles.addTopicRow, styles.lastTableRow]}>
-              <TextInput
-                style={styles.addTopicInput}
-                placeholder="Yeni konu ekle..."
-                placeholderTextColor={colors.textMuted}
-                value={newTopicText}
-                onChangeText={setNewTopicText}
-                onSubmitEditing={() => addCustomTopic(selectedSubject.id, newTopicText)}
-              />
-              <TouchableOpacity
-                onPress={() => addCustomTopic(selectedSubject.id, newTopicText)}
-                style={styles.addTopicButton}
-              >
-                <Icon name="plus" size={22} color={colors.success} />
-              </TouchableOpacity>
+              
+              {/* Konu Checkbox */}
+              <View style={styles.checkboxColumn}>
+                <TouchableOpacity
+                  style={styles.checkboxTouchArea}
+                  onPress={() => toggleCompletion(selectedCourse.id, topic.id, 'konu')}
+                >
+                  <View style={[
+                    styles.checkbox,
+                    { backgroundColor: topic.completion.konu ? colors.primary : colors.border }
+                  ]}>
+                    {topic.completion.konu && (
+                      <Icon name="check" size={12} color="white" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Video Checkbox */}
+              <View style={styles.checkboxColumn}>
+                <TouchableOpacity
+                  style={styles.checkboxTouchArea}
+                  onPress={() => toggleCompletion(selectedCourse.id, topic.id, 'video')}
+                >
+                  <View style={[
+                    styles.checkbox,
+                    { backgroundColor: topic.completion.video ? colors.secondary : colors.border }
+                  ]}>
+                    {topic.completion.video && (
+                      <Icon name="check" size={12} color="white" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Soru Checkbox */}
+              <View style={styles.checkboxColumn}>
+                <TouchableOpacity
+                  style={styles.checkboxTouchArea}
+                  onPress={() => toggleCompletion(selectedCourse.id, topic.id, 'soru')}
+                >
+                  <View style={[
+                    styles.checkbox,
+                    { backgroundColor: topic.completion.soru ? colors.warning : colors.border }
+                  ]}>
+                    {topic.completion.soru && (
+                      <Icon name="check" size={12} color="white" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Tamamlandı Checkbox */}
+              <View style={styles.checkboxColumn}>
+                <TouchableOpacity
+                  style={styles.checkboxTouchArea}
+                  onPress={() => toggleCompletion(selectedCourse.id, topic.id, 'tamamlandi')}
+                >
+                  <View style={[
+                    styles.checkbox,
+                    { backgroundColor: topic.completion.tamamlandi ? colors.success : colors.border }
+                  ]}>
+                    {topic.completion.tamamlandi && (
+                      <Icon name="check" size={12} color="white" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
-          )}
+          ))}
+
+          {/* Add New Topic Button - Moved to end */}
+          <TouchableOpacity
+            style={[styles.addTopicButtonSmall, { backgroundColor: selectedCourse.color }]}
+            onPress={() => openTopicManagementModal(null, false)}
+          >
+            <Icon name="plus" size={14} color="white" />
+            <Text style={styles.addTopicButtonSmallText}>Yeni Konu Ekle</Text>
+          </TouchableOpacity>
         </ScrollView>
+
+        {/* Topic Management Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={topicManagementModal}
+          onRequestClose={() => setTopicManagementModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.topicManagementModal, { backgroundColor: colors.card }]}>
+              <View style={styles.topicModalHeader}>
+                <View style={styles.topicModalTitleContainer}>
+                  <Icon 
+                    name={isEditingTopic ? "pencil" : "plus-circle"} 
+                    size={24} 
+                    color={selectedCourse?.color || colors.primary} 
+                  />
+                  <Text style={[styles.topicModalTitle, { color: colors.text }]}>
+                    {isEditingTopic ? 'Konu Düzenle' : 'Yeni Konu Ekle'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.topicModalCloseButton, { backgroundColor: colors.border }]}
+                  onPress={() => setTopicManagementModal(false)}
+                >
+                  <Icon name="close" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              {selectedCourse && (
+                <View style={[styles.topicModalCourseInfo, { backgroundColor: selectedCourse.color + '10' }]}>
+                  <Icon name={selectedCourse.icon} size={20} color={selectedCourse.color} />
+                  <Text style={[styles.topicModalCourseName, { color: selectedCourse.color }]}>
+                    {selectedCourse.name}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.topicModalBody}>
+                <Text style={[styles.topicModalLabel, { color: colors.textLight }]}>
+                  {isEditingTopic ? 'Konu Adını Düzenle' : 'Yeni Konu Adı'}
+                </Text>
+                <TextInput
+                  style={[styles.topicModalTextInput, { 
+                    backgroundColor: colors.backgroundLight, 
+                    borderColor: colors.border,
+                    color: colors.text
+                  }]}
+                  placeholder={isEditingTopic ? "Konu adını düzenle" : "Yeni konu adı girin"}
+                  placeholderTextColor={colors.textMuted}
+                  value={newTopicName}
+                  onChangeText={setNewTopicName}
+                  autoFocus={true}
+                  multiline={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleTopicManagement}
+                />
+
+                <View style={styles.topicModalButtonContainer}>
+                  <TouchableOpacity
+                    style={[styles.topicModalButton, styles.topicModalCancelButton, { 
+                      backgroundColor: colors.backgroundLight,
+                      borderColor: colors.border 
+                    }]}
+                    onPress={() => setTopicManagementModal(false)}
+                  >
+                    <Icon name="close-circle" size={18} color={colors.textMuted} />
+                    <Text style={[styles.topicModalButtonText, { color: colors.textMuted }]}>İptal</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.topicModalButton, styles.topicModalSaveButton, { 
+                      backgroundColor: selectedCourse?.color || colors.primary 
+                    }]}
+                    onPress={handleTopicManagement}
+                    disabled={!newTopicName.trim()}
+                  >
+                    <Icon 
+                      name={isEditingTopic ? "check-circle" : "plus-circle"} 
+                      size={18} 
+                      color="white" 
+                    />
+                    <Text style={[styles.topicModalButtonText, { color: 'white' }]}>
+                      {isEditingTopic ? 'Güncelle' : 'Ekle'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {isEditingTopic && (
+                  <TouchableOpacity
+                    style={[styles.topicModalDeleteButton, { backgroundColor: colors.danger }]}
+                    onPress={handleRemoveTopic}
+                  >
+                    <Icon name="delete" size={18} color="white" />
+                    <Text style={[styles.topicModalButtonText, { color: 'white' }]}>Konu Sil</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
 
+  // Courses Overview
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Dersler</Text>
-        <Text style={styles.headerSubtitle}>Konu takibini yap 📚</Text>
-      </View>
-      <View style={styles.subjectsGrid}>
-        {subjects.map(subject => {
-          const progressPercent = getSubjectProgress(subject.id);
-          return (
-            <TouchableOpacity
-              key={subject.id}
-              style={[styles.subjectCard, {borderLeftColor: subject.color}]}
-              onPress={() => setSelectedSubject(subject)}>
-              <View style={styles.subjectCardHeader}>
-                <Icon name={subject.icon} size={32} color={subject.color} />
-                <View style={[styles.miniProgressBadge, {backgroundColor: `${subject.color}20`}]}>
-                  <Text style={[styles.miniProgressText, {color: subject.color}]}>
-                    {progressPercent}%
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.subjectCardTitle}>{subject.name}</Text>
-              <Text style={styles.subjectCardTopics}>
-                {getTopicsForSubject(subject.id).length} Konu
+    <View style={styles.container}>
+      <View style={[styles.modernHeader, { backgroundColor: colors.primary }]}>
+        <View style={styles.headerGradientOverlay}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.modernHeaderTitle}>Dersler</Text>
+              <Text style={styles.modernHeaderSubtitle}>
+                Konularınızı takip edin 📚
               </Text>
-            </TouchableOpacity>
-          );
-        })}
+            </View>
+            <View style={styles.headerStats}>
+              <View style={styles.headerStatItem}>
+                <Text style={styles.headerStatNumber}>{getTotalProgress()}%</Text>
+                <Text style={styles.headerStatLabel}>Tamamlandı</Text>
+              </View>
+            </View>
+          </View>
+        </View>
       </View>
-    </ScrollView>
+
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.homeContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        {courses.map((course) => (
+          <TouchableOpacity
+            key={course.id}
+            onPress={() => setSelectedCourse(course)}
+            style={[styles.courseCard, { backgroundColor: colors.card }]}
+          >
+            <View style={styles.courseHeader}>
+              <View style={[styles.courseIcon, { backgroundColor: course.color + '15' }]}>
+                <Icon name={course.icon} size={32} color={course.color} />
+              </View>
+              <View style={styles.courseInfo}>
+                <Text style={[styles.courseName, { color: colors.text }]}>{course.name}</Text>
+                <Text style={[styles.courseStats, { color: colors.textLight }]}>
+                  {course.completedTopics}/{course.totalTopics} Konu Tamamlandı
+                </Text>
+                <Text style={[styles.courseTime, { color: colors.textSecondary }]}>
+                  Toplam {course.totalTopics} konu
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={24} color={colors.textMuted} />
+            </View>
+
+            <View style={styles.courseProgress}>
+              <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { 
+                      backgroundColor: course.color,
+                      width: `${(course.completedTopics / course.totalTopics) * 100}%`
+                    }
+                  ]}
+                />
+              </View>
+              <Text style={[styles.progressPercentage, { color: course.color }]}>
+                {Math.round((course.completedTopics / course.totalTopics) * 100)}%
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
-// Ajanda Ekranı
-function ScheduleScreen({ 
-  weeklySchedule, 
-  saveCustomSchedule 
-}: { 
-  weeklySchedule: typeof defaultWeeklySchedule; 
-  saveCustomSchedule: (newSchedule: typeof defaultWeeklySchedule) => Promise<void>;
-}) {
-  const [isCustomizing, setIsCustomizing] = useState(false);
-  const [customSchedule, setCustomSchedule] = useState(weeklySchedule);
-  const [editingDay, setEditingDay] = useState<number | null>(null);
-  const [showGoalsModal, setShowGoalsModal] = useState(false);
-  const [selectedSubjectForGoals, setSelectedSubjectForGoals] = useState<string>('');
-  const [dailyGoals, setDailyGoals] = useState({
-    videos: 0,
-    questions: 0,
-    topics: 0,
-    studyTime: 0,
+// Reports Screen Component
+function ReportsScreen() {
+  const [reportData, setReportData] = useState({
+    thisWeek: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics: 0, totalTopics: 0 },
+    lastWeek: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics: 0, totalTopics: 0 },
+    thisMonth: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics: 0, totalTopics: 0 },
   });
+  const [refreshing, setRefreshing] = useState(false);
+  const [studyLogs, setStudyLogs] = useState<StudyLog[]>([]);
+  const [_courses, setCourses] = useState<Course[]>(defaultCourses);
 
-  useEffect(() => {
-    setCustomSchedule(weeklySchedule);
-  }, [weeklySchedule]);
-
-  const handleScheduleItemPress = (subject: string) => {
-    setSelectedSubjectForGoals(subject);
-    loadExistingGoals(subject);
-    setShowGoalsModal(true);
-  };
-
-  const loadExistingGoals = async (subject: string) => {
+  const loadReportData = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const goalsData = await AsyncStorage.getItem('dailyGoals');
-      if (goalsData) {
-        const allGoals: DailyGoal[] = JSON.parse(goalsData);
-        const subjectData = subjects.find(s => s.name === subject);
-        const existingGoal = allGoals.find(goal => 
-          goal.date === today && goal.subjectId === subjectData?.id
-        );
+      // Load courses data to get topic completion
+      const coursesData = await AsyncStorage.getItem('courses');
+      let loadedCourses = defaultCourses;
+      if (coursesData) {
+        loadedCourses = JSON.parse(coursesData);
+        setCourses(loadedCourses);
+      }
+
+      // Load study logs
+      const logsData = await AsyncStorage.getItem('studyLogs');
+      let logs: StudyLog[] = [];
+      
+      if (logsData) {
+        logs = JSON.parse(logsData);
+        setStudyLogs(logs);
         
-        if (existingGoal) {
-          setDailyGoals(existingGoal.goals);
-        } else {
-          setDailyGoals({ videos: 0, questions: 0, topics: 0, studyTime: 0 });
+        // Calculate time periods
+        const now = new Date();
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        
+        const thisWeekLogs = logs.filter(log => new Date(log.date) >= weekAgo);
+        const lastWeekLogs = logs.filter(log => {
+          const logDate = new Date(log.date);
+          return logDate >= twoWeeksAgo && logDate < weekAgo;
+        });
+        const thisMonthLogs = logs.filter(log => new Date(log.date) >= monthAgo);
+        
+        // Calculate enhanced statistics
+        const calculateEnhancedStats = (logsList: StudyLog[], coursesList: Course[]) => {
+          let totalStudyTime = 0;
+          let totalVideoTime = 0;
+          let totalQuestions = 0;
+          let uniqueTopics = new Set<string>();
+          let completedTopics = 0;
+          let totalTopics = 0;
+          
+          logsList.forEach(log => {
+            totalStudyTime += log.studyMinutes;
+            totalVideoTime += log.videoMinutes;
+            totalQuestions += log.questionCount;
+            
+            // Add studied topics
+            log.studyTopics.forEach(topicId => uniqueTopics.add(topicId));
+            
+            // Add custom study topics
+            log.customStudyTopics.forEach(customTopic => 
+              uniqueTopics.add(`${customTopic.courseId}-${customTopic.topicName}`)
+            );
+            
+            // Add custom questions count
+            log.customQuestions.forEach(cq => {
+              totalQuestions += cq.count;
+            });
+          });
+
+          // Calculate topic completion from courses data
+          coursesList.forEach(course => {
+            totalTopics += course.topics.length;
+            course.topics.forEach(topic => {
+              if (topic.completion.tamamlandi) {
+                completedTopics++;
+              }
+            });
+          });
+          
+          return {
+            topics: uniqueTopics.size,
+            videos: Math.floor(totalVideoTime / 30),
+            questions: totalQuestions,
+            studyTime: totalStudyTime,
+            completedTopics,
+            totalTopics,
+          };
+        };
+
+        // Generate weekly data for graphs (last 7 days)
+        const weeklyGraphData = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const dateStr = date.toISOString().split('T')[0];
+          const dayLog = logs.find(log => log.date === dateStr);
+          
+          weeklyGraphData.push({
+            date: date.toLocaleDateString('tr-TR', { weekday: 'short' }),
+            studyTime: dayLog ? dayLog.studyMinutes : 0,
+            questions: dayLog ? dayLog.questionCount + dayLog.customQuestions.reduce((sum, cq) => sum + cq.count, 0) : 0
+          });
         }
+
+        // Generate monthly data for graphs (last 30 days)
+        const monthlyGraphData = [];
+        for (let i = 29; i >= 0; i--) {
+          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const dateStr = date.toISOString().split('T')[0];
+          const dayLog = logs.find(log => log.date === dateStr);
+          
+          monthlyGraphData.push({
+            date: date.getDate().toString(),
+            studyTime: dayLog ? dayLog.studyMinutes : 0,
+            questions: dayLog ? dayLog.questionCount + dayLog.customQuestions.reduce((sum, cq) => sum + cq.count, 0) : 0
+          });
+        }
+        
+        setReportData({
+          thisWeek: calculateEnhancedStats(thisWeekLogs, loadedCourses),
+          lastWeek: calculateEnhancedStats(lastWeekLogs, loadedCourses),
+          thisMonth: calculateEnhancedStats(thisMonthLogs, loadedCourses),
+        });
+      } else {
+        // No study logs yet, but still calculate topic completion
+        let completedTopics = 0;
+        let totalTopics = 0;
+        
+        loadedCourses.forEach(course => {
+          totalTopics += course.topics.length;
+          course.topics.forEach(topic => {
+            if (topic.completion.tamamlandi) {
+              completedTopics++;
+            }
+          });
+        });
+
+        setReportData({
+          thisWeek: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics, totalTopics },
+          lastWeek: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics, totalTopics },
+          thisMonth: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics, totalTopics },
+        });
       }
     } catch (error) {
-      console.log('Existing goals yüklenemedi:', error);
+      console.log('Error loading report data:', error);
     }
   };
 
-  const saveDailyGoals = async () => {
+  useEffect(() => {
+    loadReportData();
+  }, []);
+
+  // Refresh data whenever the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadReportData();
+    }, [])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadReportData();
+    setRefreshing(false);
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.modernHeader, { backgroundColor: colors.info }]}>
+        <View style={styles.headerGradientOverlay}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.modernHeaderTitle}>Raporlar</Text>
+              <Text style={styles.modernHeaderSubtitle}>
+                İlerlemeni gözden geçir 📈
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.homeContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.info}
+            colors={[colors.info]}
+            title="Yenileniyor..."
+            titleColor={colors.textSecondary}
+          />
+        }
+      >
+        {/* Overall Progress Card */}
+        <View style={[styles.modernStatsSection, { backgroundColor: colors.background }]}>
+          <Text style={[styles.homeSectionTitle, { color: colors.text }]}>Genel İlerleme</Text>
+          <View style={[styles.modernStatCard, { backgroundColor: colors.card }]}>
+            <View style={styles.reportRow}>
+              <Icon name="book-check" size={20} color={colors.success} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Tamamlanan Konu</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisMonth.completedTopics}</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="book-multiple" size={20} color={colors.primary} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Konu</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisMonth.totalTopics}</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="percent" size={20} color={colors.warning} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Tamamlama Oranı</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>
+                {Math.round((reportData.thisMonth.completedTopics / reportData.thisMonth.totalTopics) * 100) || 0}%
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* This Week Report */}
+        <View style={[styles.modernStatsSection, { backgroundColor: colors.background }]}>
+          <Text style={[styles.homeSectionTitle, { color: colors.text }]}>Bu Hafta</Text>
+          <View style={[styles.modernStatCard, { backgroundColor: colors.card }]}>
+            <View style={styles.reportRow}>
+              <Icon name="book-check" size={20} color={colors.success} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Çalışılan Farklı Konu</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisWeek.topics}</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="video" size={20} color={colors.primary} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Video Dakikası</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisWeek.videos * 30}dk</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="checkbox-marked-circle" size={20} color={colors.warning} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Çözülen Soru</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisWeek.questions}</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="clock" size={20} color={colors.secondary} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Çalışma</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisWeek.studyTime}dk</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Last Week Comparison */}
+        {reportData.lastWeek.topics > 0 && (
+          <View style={[styles.modernStatsSection, { backgroundColor: colors.background }]}>
+            <Text style={[styles.homeSectionTitle, { color: colors.text }]}>Geçen Hafta ile Karşılaştırma</Text>
+            <View style={[styles.modernStatCard, { backgroundColor: colors.card }]}>
+              <View style={styles.reportRow}>
+                <Icon name="trending-up" size={20} color={colors.info} />
+                <Text style={[styles.reportLabel, { color: colors.textLight }]}>Konu Artışı</Text>
+                <Text style={[styles.reportValue, { color: colors.text }]}>
+                  {reportData.thisWeek.topics - reportData.lastWeek.topics >= 0 ? '+' : ''}
+                  {reportData.thisWeek.topics - reportData.lastWeek.topics}
+                </Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Icon name="chart-line" size={20} color={colors.primary} />
+                <Text style={[styles.reportLabel, { color: colors.textLight }]}>Çalışma Süresi Değişimi</Text>
+                <Text style={[styles.reportValue, { color: colors.text }]}>
+                  {reportData.thisWeek.studyTime - reportData.lastWeek.studyTime >= 0 ? '+' : ''}
+                  {reportData.thisWeek.studyTime - reportData.lastWeek.studyTime}dk
+                </Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Icon name="help-circle" size={20} color={colors.warning} />
+                <Text style={[styles.reportLabel, { color: colors.textLight }]}>Soru Artışı</Text>
+                <Text style={[styles.reportValue, { color: colors.text }]}>
+                  {reportData.thisWeek.questions - reportData.lastWeek.questions >= 0 ? '+' : ''}
+                  {reportData.thisWeek.questions - reportData.lastWeek.questions}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* This Month Summary */}
+        <View style={[styles.modernStatsSection, { backgroundColor: colors.background }]}>
+          <Text style={[styles.homeSectionTitle, { color: colors.text }]}>Bu Ay Özeti</Text>
+          <View style={[styles.modernStatCard, { backgroundColor: colors.card }]}>
+            <View style={styles.reportRow}>
+              <Icon name="calendar-month" size={20} color={colors.info} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Günlük Log</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{studyLogs.length}</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="book-multiple" size={20} color={colors.success} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Farklı Konu</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisMonth.topics}</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="clock-outline" size={20} color={colors.primary} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Çalışma Saati</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{Math.round(reportData.thisMonth.studyTime / 60)}sa</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="help-circle-outline" size={20} color={colors.warning} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Toplam Soru</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{reportData.thisMonth.questions}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Performance Analysis */}
+        <View style={[styles.modernStatsSection, { backgroundColor: colors.background }]}>
+          <Text style={[styles.homeSectionTitle, { color: colors.text }]}>Performans Analizi</Text>
+          <View style={[styles.modernStatCard, { backgroundColor: colors.card }]}>
+            <View style={styles.reportRow}>
+              <Icon name="trending-up" size={20} color={colors.success} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Günlük Ortalama Çalışma</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>{Math.round(reportData.thisWeek.studyTime / 7)}dk</Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="target" size={20} color={colors.primary} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Çalışma Tutarlılığı</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>
+                {studyLogs.length > 0 ? 
+                  Math.round((studyLogs.filter(log => log.studyMinutes > 0).length / studyLogs.length) * 100) : 0}%
+              </Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="speedometer" size={20} color={colors.warning} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Çalışma Yoğunluğu</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>
+                {reportData.thisWeek.studyTime > 300 ? 'Yüksek' : 
+                 reportData.thisWeek.studyTime > 120 ? 'Orta' : 'Düşük'}
+              </Text>
+            </View>
+            <View style={styles.reportRow}>
+              <Icon name="book-open-variant" size={20} color={colors.info} />
+              <Text style={[styles.reportLabel, { color: colors.textLight }]}>Konu Çeşitliliği</Text>
+              <Text style={[styles.reportValue, { color: colors.text }]}>
+                {reportData.thisWeek.topics > 10 ? 'Çok İyi' : 
+                 reportData.thisWeek.topics > 5 ? 'İyi' : 'Artırılabilir'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+      </ScrollView>
+    </View>
+  );
+}
+
+// Agenda Screen Component
+function AgendaScreen() {
+  const [weeklyAgenda, setWeeklyAgenda] = useState<DayAgenda[]>([]);
+  const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>('list');
+  const [refreshing, setRefreshing] = useState(false);
+  const [courses, setCourses] = useState<Course[]>(defaultCourses);
+  
+  // Modal states
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showCustomActivityModal, setShowCustomActivityModal] = useState(false);
+  const [showCourseGoalModal, setShowCourseGoalModal] = useState(false);
+  const [showDayDetailsModal, setShowDayDetailsModal] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<DayAgenda | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<DayCourse | null>(null);
+  
+  // Custom activity states
+  const [customActivityName, setCustomActivityName] = useState('');
+  const [customActivityIcon, setCustomActivityIcon] = useState('book-outline');
+  const [customActivityColor, setCustomActivityColor] = useState(colors.primary);
+  
+  // Goal modal states
+  const [goalTopics, setGoalTopics] = useState<string[]>([]);
+  const [goalStudyTime, setGoalStudyTime] = useState(60);
+  const [goalQuestions, setGoalQuestions] = useState(10);
+
+  // Initialize default agenda
+  const createDefaultAgenda = (): DayAgenda[] => {
+    const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+    const defaultSchedule = [
+      { course: 'Matematik', courseId: '2' },
+      { course: 'Türkçe', courseId: '1' },
+      { course: 'Tarih', courseId: '4' },
+      { course: 'Coğrafya', courseId: '5' },
+      { course: 'Vatandaşlık', courseId: '6' },
+      { course: 'Matematik', courseId: '2' },
+      { course: 'Türkçe', courseId: '1' }
+    ];
+
+    return dayNames.map((dayName, index) => {
+      const defaultCourse = defaultSchedule[index];
+      const course = defaultCourses.find(c => c.id === defaultCourse.courseId) || defaultCourses[0];
+      
+      return {
+        id: `day-${index}`,
+        dayName,
+        dayIndex: index,
+        courses: [{
+          id: `${index}-${defaultCourse.courseId}`,
+          courseId: defaultCourse.courseId,
+          courseName: course.name,
+          icon: course.icon,
+          color: course.color,
+          order: 0,
+          isActive: true
+        }],
+        isToday: index === ((new Date().getDay() + 6) % 7) // Monday = 0
+      };
+    });
+  };
+
+  // Load agenda data
+  const loadAgenda = React.useCallback(async () => {
+    try {
+      const agendaData = await AsyncStorage.getItem('weeklyAgenda');
+      if (agendaData) {
+        const agenda: DayAgenda[] = JSON.parse(agendaData);
+        // Update isToday for each day
+        const updatedAgenda = agenda.map((day, index) => ({
+          ...day,
+          isToday: index === ((new Date().getDay() + 6) % 7)
+        }));
+        setWeeklyAgenda(updatedAgenda);
+      } else {
+        const defaultAgenda = createDefaultAgenda();
+        setWeeklyAgenda(defaultAgenda);
+        await AsyncStorage.setItem('weeklyAgenda', JSON.stringify(defaultAgenda));
+      }
+    } catch (error) {
+      console.log('Error loading agenda:', error);
+      setWeeklyAgenda(createDefaultAgenda());
+    }
+  }, []);
+
+  // Save agenda data
+  const saveAgenda = async (agenda: DayAgenda[]) => {
+    try {
+      await AsyncStorage.setItem('weeklyAgenda', JSON.stringify(agenda));
+      setWeeklyAgenda(agenda);
+    } catch (error) {
+      console.log('Error saving agenda:', error);
+      Alert.alert('Hata', 'Ajanda kaydedilemedi.');
+    }
+  };
+
+  // Load courses data
+  const loadCoursesData = async () => {
+    try {
+      const coursesData = await AsyncStorage.getItem('courses');
+      if (coursesData) {
+        setCourses(JSON.parse(coursesData));
+      } else {
+        setCourses(defaultCourses);
+      }
+    } catch (error) {
+      console.log('Error loading courses:', error);
+      setCourses(defaultCourses);
+    }
+  };
+
+  // Add course to day
+  const addCourseToDay = (dayId: string, course: Course) => {
+    const updatedAgenda = weeklyAgenda.map(day => {
+      if (day.id === dayId) {
+        const newCourse: DayCourse = {
+          id: `${dayId}-${course.id}-${Date.now()}`,
+          courseId: course.id,
+          courseName: course.name,
+          icon: course.icon,
+          color: course.color,
+          order: day.courses.length,
+          isActive: true
+        };
+        return {
+          ...day,
+          courses: [...day.courses, newCourse]
+        };
+      }
+      return day;
+    });
+    saveAgenda(updatedAgenda);
+  };
+
+  // Add custom activity to day
+  const addCustomActivityToDay = (dayId: string, activityName: string, icon: string, color: string) => {
+    const updatedAgenda = weeklyAgenda.map(day => {
+      if (day.id === dayId) {
+        const newActivity: DayCourse = {
+          id: `${dayId}-custom-${Date.now()}`,
+          courseId: 'custom',
+          courseName: activityName,
+          icon: icon,
+          color: color,
+          order: day.courses.length,
+          isActive: true,
+          isCustomActivity: true
+        };
+        return {
+          ...day,
+          courses: [...day.courses, newActivity]
+        };
+      }
+      return day;
+    });
+    saveAgenda(updatedAgenda);
+  };
+
+  // Remove course from day
+  const removeCourseFromDay = (dayId: string, courseId: string) => {
+    Alert.alert(
+      'Dersi Kaldır',
+      'Bu dersi günden kaldırmak istediğinizden emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Kaldır',
+          style: 'destructive',
+          onPress: () => {
+            const updatedAgenda = weeklyAgenda.map(day => {
+              if (day.id === dayId) {
+                const filteredCourses = day.courses.filter(c => c.id !== courseId);
+                // Reorder remaining courses
+                const reorderedCourses = filteredCourses.map((course, index) => ({
+                  ...course,
+                  order: index
+                }));
+                return {
+                  ...day,
+                  courses: reorderedCourses
+                };
+              }
+              return day;
+            });
+            saveAgenda(updatedAgenda);
+          }
+        }
+      ]
+    );
+  };
+
+  // Reset day to single default course
+  const resetDay = (dayId: string) => {
+    Alert.alert(
+      'Günü Sıfırla',
+      'Bu günü varsayılan haline sıfırlamak istediğinizden emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sıfırla',
+          style: 'destructive',
+          onPress: () => {
+            const dayIndex = weeklyAgenda.findIndex(d => d.id === dayId);
+            if (dayIndex !== -1) {
+              const defaultAgenda = createDefaultAgenda();
+              const updatedAgenda = [...weeklyAgenda];
+              updatedAgenda[dayIndex] = {
+                ...defaultAgenda[dayIndex],
+                id: dayId,
+                isToday: updatedAgenda[dayIndex].isToday
+              };
+              saveAgenda(updatedAgenda);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Reset entire agenda
+  const resetEntireAgenda = () => {
+    Alert.alert(
+      'Tüm Ajandayı Sıfırla',
+      'Tüm haftalık ajandayı varsayılan haline sıfırlamak istediğinizden emin misiniz? Bu işlem geri alınamaz!',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sıfırla',
+          style: 'destructive',
+          onPress: async () => {
+            const defaultAgenda = createDefaultAgenda();
+            await saveAgenda(defaultAgenda);
+            Alert.alert('✅', 'Ajanda varsayılan haline sıfırlandı!');
+          }
+        }
+      ]
+    );
+  };
+
+  // Create goal for course
+  const createGoalForCourse = async (course: DayCourse) => {
+    // For custom activities, only require time or questions
+    // For regular courses, require topics
+    if (!course.isCustomActivity && goalTopics.length === 0) {
+      Alert.alert('Hata', 'Lütfen en az bir konu seçin.');
+      return;
+    }
+
+    if (course.isCustomActivity && goalStudyTime === 0 && goalQuestions === 0) {
+      Alert.alert('Hata', 'Lütfen çalışma süresi veya soru sayısı belirleyin.');
+      return;
+    }
+
     try {
       const today = new Date().toISOString().split('T')[0];
-      const subjectData = subjects.find(s => s.name === selectedSubjectForGoals);
-      
-      if (!subjectData) return;
 
-      const goalsData = await AsyncStorage.getItem('dailyGoals');
-      const allGoals: DailyGoal[] = goalsData ? JSON.parse(goalsData) : [];
-      
-      // Remove existing goal for this subject and date
-      const filteredGoals = allGoals.filter(goal => 
-        !(goal.date === today && goal.subjectId === subjectData.id)
-      );
-
-      // Add new goal
       const newGoal: DailyGoal = {
-        id: `${today}-${subjectData.id}`,
-        subjectId: subjectData.id,
+        id: `${course.courseName}_${today}_${Date.now()}`,
+        subject: course.courseName,
         date: today,
-        goals: dailyGoals,
-        progress: { videos: 0, questions: 0, topics: 0, studyTime: 0 },
+        selectedTopics: course.isCustomActivity ? [] : goalTopics,
+        studyTimeMinutes: goalStudyTime,
+        questionCount: goalQuestions,
+        progress: {
+          completedTopics: [],
+          studyTimeSpent: 0,
+          questionsAnswered: 0,
+        },
         completed: false,
       };
 
-      filteredGoals.push(newGoal);
-      await AsyncStorage.setItem('dailyGoals', JSON.stringify(filteredGoals));
+      const goalsData = await AsyncStorage.getItem('dailyGoals');
+      let allGoals: DailyGoal[] = goalsData ? JSON.parse(goalsData) : [];
+      allGoals.push(newGoal);
+      await AsyncStorage.setItem('dailyGoals', JSON.stringify(allGoals));
       
-      setShowGoalsModal(false);
-      Alert.alert('✅ Başarılı', `${selectedSubjectForGoals} için günlük hedefler kaydedildi!`);
+      setShowGoalModal(false);
+      setGoalTopics([]);
+      setGoalStudyTime(60);
+      setGoalQuestions(10);
+      
+      const topicsText = course.isCustomActivity ? 'Özel Aktivite' : `${goalTopics.length} Konu`;
+      Alert.alert(
+        'Hedef Oluşturuldu! 🎯',
+        `${course.courseName} için günlük hedef oluşturuldu:\n• ${topicsText}\n• ${goalQuestions} Soru\n• ${Math.floor(goalStudyTime / 60)}sa ${goalStudyTime % 60}dk`
+      );
     } catch (error) {
-      console.log('Daily goals kaydedilemedi:', error);
-      Alert.alert('❌ Hata', 'Hedefler kaydedilirken bir hata oluştu.');
+      console.log('Goal oluşturulamadı:', error);
+      Alert.alert('Hata', 'Günlük hedef oluşturulamadı.');
     }
   };
 
-  const handleSaveCustomization = async () => {
-    await saveCustomSchedule(customSchedule);
-    setIsCustomizing(false);
-    setEditingDay(null);
+  // Toggle topic selection for goal
+  const toggleGoalTopic = (topicId: string) => {
+    setGoalTopics(prev => 
+      prev.includes(topicId) 
+        ? prev.filter(id => id !== topicId)
+        : [...prev, topicId]
+    );
   };
 
-  const handleCancelCustomization = () => {
-    setCustomSchedule(weeklySchedule);
-    setIsCustomizing(false);
-    setEditingDay(null);
+  // Show course goal information with improved modal
+  const showCourseGoal = async (course: DayCourse) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const goalsData = await AsyncStorage.getItem('dailyGoals');
+      
+      if (goalsData) {
+        const goals: DailyGoal[] = JSON.parse(goalsData);
+        const courseGoals = goals.filter(goal => 
+          goal.subject === course.courseName && goal.date === today
+        );
+        
+        if (courseGoals.length > 0) {
+          // Show goals in a better formatted way
+          setSelectedCourse(course);
+          setShowCourseGoalModal(true);
+        } else {
+          // No goals found - show create goal option
+          Alert.alert(
+            `📝 ${course.courseName}`,
+            'Bu ders için henüz hedef belirlenmemiş.',
+            [
+              { text: 'Kapat', style: 'cancel' },
+              { 
+                text: 'Hedef Oluştur', 
+                onPress: () => {
+                  setSelectedCourse(course);
+                  setGoalTopics([]);
+                  setGoalStudyTime(60);
+                  setGoalQuestions(10);
+                  setShowGoalModal(true);
+                }
+              }
+            ]
+          );
+        }
+      } else {
+        // No goals data - show create goal option
+        Alert.alert(
+          `📝 ${course.courseName}`,
+          'Bu ders için henüz hedef belirlenmemiş.',
+          [
+            { text: 'Kapat', style: 'cancel' },
+            { 
+              text: 'Hedef Oluştur', 
+              onPress: () => {
+                setSelectedCourse(course);
+                setGoalTopics([]);
+                setGoalStudyTime(60);
+                setGoalQuestions(10);
+                setShowGoalModal(true);
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.log('Error loading course goals:', error);
+      Alert.alert('Hata', 'Hedef bilgileri yüklenemedi.');
+    }
   };
 
-  const handleDayEdit = (dayIndex: number, newSubject: string) => {
-    const updatedSchedule = [...customSchedule];
-    const subjectData = subjects.find(s => s.name === newSubject) || { icon: 'help-circle', color: colors.textLight };
-    
-    updatedSchedule[dayIndex] = {
-      ...updatedSchedule[dayIndex],
-      subject: newSubject,
-      icon: subjectData.icon,
-      color: subjectData.color,
-    };
-    
-    setCustomSchedule(updatedSchedule);
-    setEditingDay(null);
-  };
-
-  const handleMoveDay = (fromIndex: number, toIndex: number) => {
-    const updatedSchedule = [...customSchedule];
-    const [movedItem] = updatedSchedule.splice(fromIndex, 1);
-    updatedSchedule.splice(toIndex, 0, movedItem);
-    setCustomSchedule(updatedSchedule);
-  };
-
-  if (isCustomizing) {
+  // Render course item without move buttons, with click functionality
+  const renderCourseItem = (course: DayCourse, dayId: string) => {
     return (
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Program Düzenle</Text>
-          <Text style={styles.headerSubtitle}>Çalışma programını özelleştir ✏️</Text>
+      <TouchableOpacity
+        key={course.id}
+        style={[
+          styles.agendaCourseItem,
+          {
+            backgroundColor: colors.card,
+            borderLeftColor: course.color,
+          }
+        ]}
+        onPress={() => showCourseGoal(course)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.agendaCourseContent}>
+          <View style={[styles.agendaCourseIcon, { backgroundColor: course.color + '15' }]}>
+            <Icon name={course.icon} size={20} color={course.color} />
+          </View>
+          <View style={styles.agendaCourseInfo}>
+            <Text style={[styles.agendaCourseText, { color: colors.text }]}>
+              {course.courseName}
+              {course.isCustomActivity && (
+                <Text style={[styles.customActivityBadge, { color: colors.textLight }]}> (Özel Aktivite)</Text>
+              )}
+            </Text>
+            <Text style={[styles.agendaCourseGoal, { color: colors.textLight }]}>
+              Hedef belirlenmemiş - Tıkla ve oluştur
+            </Text>
+          </View>
+          <View style={styles.agendaCourseActions}>
+            <TouchableOpacity
+              style={[styles.agendaCourseButton, { backgroundColor: colors.primary }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                setSelectedCourse(course);
+                setGoalTopics([]);
+                setGoalStudyTime(60);
+                setGoalQuestions(10);
+                setShowGoalModal(true);
+              }}
+            >
+              <Icon name="target" size={14} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.agendaCourseButton, { backgroundColor: colors.danger }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                removeCourseFromDay(dayId, course.id);
+              }}
+            >
+              <Icon name="close" size={14} color="white" />
+            </TouchableOpacity>
+          </View>
         </View>
+      </TouchableOpacity>
+    );
+  };
 
-        <View style={styles.customizationControls}>
-          <TouchableOpacity onPress={handleSaveCustomization} style={[styles.controlButton, styles.saveButton]}>
-            <Icon name="check" size={20} color={colors.backgroundLight} />
-            <Text style={styles.controlButtonText}>Kaydet</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleCancelCustomization} style={[styles.controlButton, styles.cancelButton]}>
-            <Icon name="close" size={20} color={colors.backgroundLight} />
-            <Text style={styles.controlButtonText}>İptal</Text>
-          </TouchableOpacity>
+  // Initialize data
+  useEffect(() => {
+    loadAgenda();
+    loadCoursesData();
+  }, [loadAgenda]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAgenda();
+    await loadCoursesData();
+    setRefreshing(false);
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.modernHeader, { backgroundColor: colors.secondary }]}>
+        <View style={styles.headerGradientOverlay}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.modernHeaderTitle}>Haftalık Program</Text>
+              <Text style={styles.modernHeaderSubtitle}>
+                Programınızı özelleştirin 📅
+              </Text>
+            </View>
+            <View style={styles.headerStats}>
+              <TouchableOpacity
+                style={[styles.headerActionButton, { backgroundColor: colors.info }]}
+                onPress={() => setCalendarViewMode(calendarViewMode === 'list' ? 'calendar' : 'list')}
+              >
+                <Icon 
+                  name={calendarViewMode === 'list' ? 'calendar-month' : 'view-list'} 
+                  size={18} 
+                  color="white" 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.headerActionButton, { backgroundColor: colors.danger }]}
+                onPress={resetEntireAgenda}
+              >
+                <Icon name="refresh" size={18} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
+      </View>
 
-        {customSchedule.map((item, index) => (
-          <View key={index} style={[styles.editableScheduleCard, {borderLeftColor: item.color}]}>
-            <View style={styles.scheduleDay}>
-              <Text style={styles.scheduleDayText}>{item.day}</Text>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.homeContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.secondary}
+            colors={[colors.secondary]}
+          />
+        }
+      >
+        {/* Weekly Agenda - List or Calendar View */}
+        {calendarViewMode === 'list' ? (
+          // List View
+          weeklyAgenda.map((day) => (
+            <View key={day.id} style={[
+              styles.newAgendaDayContainer,
+              { backgroundColor: colors.card },
+              day.isToday && styles.todayHighlight
+            ]}>
+              <View style={styles.newAgendaDayHeader}>
+                <View style={styles.agendaDayTitleSection}>
+                  <Text style={[
+                    styles.agendaDayTitle, 
+                    { color: colors.text },
+                    day.isToday && styles.todayText
+                  ]}>
+                    {day.dayName}
+                    {day.isToday && (
+                      <View style={[styles.todayBadge, { backgroundColor: colors.primary }]}>
+                        <Text style={styles.todayBadgeText}>BUGÜN</Text>
+                      </View>
+                    )}
+                  </Text>
+                  <Text style={[styles.agendaCourseCount, { color: colors.textLight }]}>
+                    {day.courses.length} ders planlandı
+                  </Text>
+                </View>
+                <View style={styles.newAgendaDayActions}>
+                  <TouchableOpacity
+                    style={[styles.agendaDayButton, { backgroundColor: colors.success }]}
+                    onPress={() => {
+                      setSelectedDay(day);
+                      setShowCourseModal(true);
+                    }}
+                  >
+                    <Icon name="plus" size={16} color="white" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.agendaDayButton, { backgroundColor: colors.warning }]}
+                    onPress={() => resetDay(day.id)}
+                  >
+                    <Icon name="refresh" size={16} color="white" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Courses List */}
+              <View style={styles.agendaCoursesContainer}>
+                {day.courses
+                  .sort((a, b) => a.order - b.order)
+                  .map((course) => 
+                    renderCourseItem(course, day.id)
+                  )}
+              </View>
+            </View>
+          ))
+        ) : (
+          // Calendar Grid View - Improved Layout
+          <View style={[styles.calendarContainer, { backgroundColor: colors.card }]}>
+            <View style={styles.calendarHeader}>
+              <Text style={[styles.calendarTitle, { color: colors.text }]}>Haftalık Takvim Görünümü</Text>
             </View>
             
-            <TouchableOpacity 
-              style={styles.editableScheduleContent}
-              onPress={() => setEditingDay(editingDay === index ? null : index)}
-            >
-              <Icon name={item.icon} size={28} color={item.color} />
-              <Text style={styles.scheduleSubject}>{item.subject}</Text>
-              <Icon name="pencil" size={16} color={colors.textLight} />
-            </TouchableOpacity>
-
-            {editingDay === index && (
-              <View style={styles.subjectOptions}>
-                {[...subjects.map(s => s.name), 'Tekrar', 'Test', 'Dinlenme', 'Serbest Çalışma'].map((subject) => (
+            {/* Weekdays Row */}
+            <View style={styles.calendarWeekRow}>
+              <Text style={[styles.calendarRowTitle, { color: colors.primary }]}>Hafta İçi</Text>
+              <View style={styles.calendarDaysRow}>
+                {weeklyAgenda.slice(0, 5).map((day) => (
                   <TouchableOpacity
-                    key={subject}
-                    style={styles.subjectOption}
-                    onPress={() => handleDayEdit(index, subject)}
+                    key={day.id}
+                    style={[
+                      styles.calendarDayCard,
+                      { backgroundColor: colors.backgroundLight },
+                      day.isToday && [styles.todayHighlight, { backgroundColor: colors.primary + '10' }]
+                    ]}
+                    onPress={() => {
+                      setSelectedDay(day);
+                      setShowDayDetailsModal(true);
+                    }}
                   >
-                    <Text style={styles.subjectOptionText}>{subject}</Text>
+                    <Text style={[
+                      styles.calendarDayName, 
+                      { color: colors.text },
+                      day.isToday && { color: colors.primary, fontWeight: '700' }
+                    ]}>
+                      {day.dayName.slice(0, 3)}
+                    </Text>
+                    {day.isToday && (
+                      <View style={[styles.todayIndicator, { backgroundColor: colors.primary }]} />
+                    )}
+                    <View style={styles.calendarCourses}>
+                      {day.courses.slice(0, 2).map((course, index) => (
+                        <Text 
+                          key={course.id} 
+                          style={[styles.calendarCourseText, { 
+                            color: course.color,
+                            fontSize: 9,
+                            fontWeight: '600'
+                          }]}
+                          numberOfLines={1}
+                        >
+                          {course.courseName}
+                        </Text>
+                      ))}
+                      {day.courses.length > 2 && (
+                        <Text style={[styles.calendarMoreText, { color: colors.textMuted }]}>
+                          +{day.courses.length - 2}
+                        </Text>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
-            )}
+            </View>
 
-            <View style={styles.moveControls}>
-              {index > 0 && (
-                <TouchableOpacity onPress={() => handleMoveDay(index, index - 1)} style={styles.moveButton}>
-                  <Icon name="arrow-up" size={20} color={colors.primary} />
-                </TouchableOpacity>
-              )}
-              {index < customSchedule.length - 1 && (
-                <TouchableOpacity onPress={() => handleMoveDay(index, index + 1)} style={styles.moveButton}>
-                  <Icon name="arrow-down" size={20} color={colors.primary} />
-                </TouchableOpacity>
-              )}
+            {/* Weekend Row */}
+            <View style={styles.calendarWeekRow}>
+              <Text style={[styles.calendarRowTitle, { color: colors.secondary }]}>Hafta Sonu</Text>
+              <View style={styles.calendarDaysRow}>
+                {weeklyAgenda.slice(5, 7).map((day) => (
+                  <TouchableOpacity
+                    key={day.id}
+                    style={[
+                      styles.calendarDayCard,
+                      styles.calendarWeekendCard,
+                      { backgroundColor: colors.backgroundLight },
+                      day.isToday && [styles.todayHighlight, { backgroundColor: colors.primary + '10' }]
+                    ]}
+                    onPress={() => {
+                      setSelectedDay(day);
+                      setShowDayDetailsModal(true);
+                    }}
+                  >
+                    <Text style={[
+                      styles.calendarDayName, 
+                      { color: colors.text },
+                      day.isToday && { color: colors.primary, fontWeight: '700' }
+                    ]}>
+                      {day.dayName.slice(0, 3)}
+                    </Text>
+                    {day.isToday && (
+                      <View style={[styles.todayIndicator, { backgroundColor: colors.primary }]} />
+                    )}
+                    <View style={styles.calendarCourses}>
+                      {day.courses.slice(0, 2).map((course, index) => (
+                        <Text 
+                          key={course.id} 
+                          style={[styles.calendarCourseText, { 
+                            color: course.color,
+                            fontSize: 9,
+                            fontWeight: '600'
+                          }]}
+                          numberOfLines={1}
+                        >
+                          {course.courseName}
+                        </Text>
+                      ))}
+                      {day.courses.length > 2 && (
+                        <Text style={[styles.calendarMoreText, { color: colors.textMuted }]}>
+                          +{day.courses.length - 2}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {/* Add empty space for visual balance */}
+                <View style={[styles.calendarDayCard, { opacity: 0 }]} />
+                <View style={[styles.calendarDayCard, { opacity: 0 }]} />
+                <View style={[styles.calendarDayCard, { opacity: 0 }]} />
+              </View>
             </View>
           </View>
-        ))}
+        )}
       </ScrollView>
-    );
-  }
 
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Haftalık Program</Text>
-        <Text style={styles.headerSubtitle}>Çalışma takvimin 📅</Text>
-        <TouchableOpacity 
-          style={styles.customizeButton}
-          onPress={() => setIsCustomizing(true)}
-        >
-          <Icon name="cog" size={20} color={colors.primary} />
-          <Text style={styles.customizeButtonText}>Düzenle</Text>
-        </TouchableOpacity>
-      </View>
-      {weeklySchedule.map((item, index) => (
-        <TouchableOpacity 
-          key={index} 
-          style={[styles.scheduleCard, {borderLeftColor: item.color}]}
-          onPress={() => handleScheduleItemPress(item.subject)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.scheduleDay}>
-            <Text style={styles.scheduleDayText}>{item.day}</Text>
-          </View>
-          <View style={styles.scheduleContent}>
-            <Icon name={item.icon} size={28} color={item.color} />
-            <Text style={styles.scheduleSubject}>{item.subject}</Text>
-          </View>
-          <View style={styles.scheduleActions}>
-            <Icon name="chevron-right" size={24} color={colors.textLight} />
-          </View>
-        </TouchableOpacity>
-      ))}
-      
-      <View style={styles.tipCard}>
-        <Icon name="lightbulb-on" size={24} color={colors.warning} />
-        <View style={styles.tipContent}>
-          <Text style={styles.tipTitle}>💡 İpucu</Text>
-          <Text style={styles.tipText}>
-            Düzenli çalışma başarının anahtarıdır. Her gün belirlenen derse odaklan!
-          </Text>
-        </View>
-      </View>
-
-      {/* Daily Goals Modal */}
+      {/* Add Course Modal */}
       <Modal
-        visible={showGoalsModal}
+        visible={showCourseModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowGoalsModal(false)}
+        onRequestClose={() => setShowCourseModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedSubjectForGoals} - Günlük Hedefler</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                📚 Ders Ekle - {selectedDay?.dayName}
+              </Text>
               <TouchableOpacity 
-                onPress={() => setShowGoalsModal(false)}
+                onPress={() => setShowCourseModal(false)}
                 style={styles.modalCloseButton}
               >
-                <Icon name="close" size={20} color={colors.textMuted} />
+                <Icon name="close" size={24} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.goalInputSection}>
-              <View style={styles.goalInputItem}>
-                <View style={styles.goalInputHeader}>
-                  <Icon name="video" size={20} color={colors.primary} />
-                  <Text style={styles.goalInputLabel}>Video İzle</Text>
-                </View>
-                <View style={styles.goalInputRow}>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, videos: Math.max(0, dailyGoals.videos - 1)})}
-                    style={styles.adjustButton}
+            <ScrollView style={styles.modalBody}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Eklemek istediğiniz dersi seçin:
+              </Text>
+              
+              {courses.map((course) => {
+                const isAlreadyAdded = selectedDay?.courses.some(c => c.courseId === course.id) || false;
+                
+                return (
+                  <TouchableOpacity
+                    key={course.id}
+                    style={[styles.newCourseSelectItem, { 
+                      backgroundColor: isAlreadyAdded ? colors.backgroundLight + '80' : colors.backgroundLight,
+                      borderLeftColor: course.color,
+                      opacity: isAlreadyAdded ? 0.5 : 1
+                    }]}
+                    onPress={() => {
+                      if (!isAlreadyAdded && selectedDay) {
+                        addCourseToDay(selectedDay.id, course);
+                        setShowCourseModal(false);
+                      } else if (isAlreadyAdded) {
+                        Alert.alert(
+                          'Ders Zaten Ekli',
+                          `${course.name} dersi bu güne zaten eklenmiş. Aynı dersi bir günde birden fazla kez ekleyemezsiniz.`,
+                          [{ text: 'Tamam', style: 'default' }]
+                        );
+                      }
+                    }}
+                    disabled={isAlreadyAdded}
                   >
-                    <Icon name="minus" size={16} color={colors.primary} />
+                    <View style={[styles.courseSelectIcon, { backgroundColor: course.color + '15' }]}>
+                      <Icon name={course.icon} size={24} color={course.color} />
+                    </View>
+                    <View style={styles.courseSelectInfo}>
+                      <Text style={[styles.courseSelectName, { 
+                        color: isAlreadyAdded ? colors.textMuted : colors.text 
+                      }]}>
+                        {course.name}
+                        {isAlreadyAdded && (
+                          <Text style={[styles.alreadyAddedBadge, { color: colors.textMuted }]}> (Zaten Ekli)</Text>
+                        )}
+                      </Text>
+                      <Text style={[styles.courseSelectTopics, { color: colors.textLight }]}>
+                        {course.totalTopics} konu
+                      </Text>
+                    </View>
+                    <Icon 
+                      name={isAlreadyAdded ? "check-circle" : "plus-circle"} 
+                      size={24} 
+                      color={isAlreadyAdded ? colors.textMuted : course.color} 
+                    />
                   </TouchableOpacity>
-                  <Text style={styles.goalInputValue}>{dailyGoals.videos}</Text>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, videos: Math.min(20, dailyGoals.videos + 1)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="plus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
+                );
+              })}
 
-              <View style={styles.goalInputItem}>
-                <View style={styles.goalInputHeader}>
-                  <Icon name="help-circle" size={20} color={colors.warning} />
-                  <Text style={styles.goalInputLabel}>Soru Çöz</Text>
-                </View>
-                <View style={styles.goalInputRow}>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, questions: Math.max(0, dailyGoals.questions - 5)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="minus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.goalInputValue}>{dailyGoals.questions}</Text>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, questions: Math.min(100, dailyGoals.questions + 5)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="plus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.goalInputItem}>
-                <View style={styles.goalInputHeader}>
-                  <Icon name="book-check" size={20} color={colors.success} />
-                  <Text style={styles.goalInputLabel}>Konu Tamamla</Text>
-                </View>
-                <View style={styles.goalInputRow}>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, topics: Math.max(0, dailyGoals.topics - 1)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="minus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.goalInputValue}>{dailyGoals.topics}</Text>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, topics: Math.min(10, dailyGoals.topics + 1)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="plus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.goalInputItem}>
-                <View style={styles.goalInputHeader}>
-                  <Icon name="clock" size={20} color={colors.secondary} />
-                  <Text style={styles.goalInputLabel}>Çalışma Süresi (dk)</Text>
-                </View>
-                <View style={styles.goalInputRow}>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, studyTime: Math.max(0, dailyGoals.studyTime - 15)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="minus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.goalInputValue}>{dailyGoals.studyTime}</Text>
-                  <TouchableOpacity 
-                    onPress={() => setDailyGoals({...dailyGoals, studyTime: Math.min(480, dailyGoals.studyTime + 15)})}
-                    style={styles.adjustButton}
-                  >
-                    <Icon name="plus" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.goalModalActions}>
-              <TouchableOpacity 
-                onPress={() => setShowGoalsModal(false)}
-                style={[styles.goalActionButton, styles.cancelGoalButton]}
+              {/* Custom Activity Option */}
+              <View style={[styles.sectionDivider, { backgroundColor: colors.border }]} />
+              <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 16 }]}>
+                Veya özel aktivite ekleyin:
+              </Text>
+              
+              <TouchableOpacity
+                style={[styles.newCourseSelectItem, { 
+                  backgroundColor: colors.backgroundLight,
+                  borderLeftColor: colors.primary,
+                  borderStyle: 'dashed'
+                }]}
+                onPress={() => {
+                  setShowCourseModal(false);
+                  setCustomActivityName('');
+                  setCustomActivityIcon('book-outline');
+                  setCustomActivityColor(colors.primary);
+                  setShowCustomActivityModal(true);
+                }}
               >
-                <Text style={styles.cancelGoalButtonText}>İptal</Text>
+                <View style={[styles.courseSelectIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Icon name="plus-circle-outline" size={24} color={colors.primary} />
+                </View>
+                <View style={styles.courseSelectInfo}>
+                  <Text style={[styles.courseSelectName, { color: colors.text }]}>
+                    Özel Aktivite Oluştur
+                  </Text>
+                  <Text style={[styles.courseSelectTopics, { color: colors.textLight }]}>
+                    Kişisel çalışma, tekrar, vs.
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={24} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={saveDailyGoals}
-                style={[styles.goalActionButton, styles.saveGoalButton]}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowCourseModal(false)}
               >
-                <Text style={styles.saveGoalButtonText}>Kaydet</Text>
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>İptal</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </ScrollView>
-  );
-}
 
-// İlerleme Ekranı
-function ProgressScreen() {
-  const [stats, setStats] = useState({
-    totalTopics: 0,
-    completedTopics: 0,
-    videosWatched: 0,
-    questionsSolved: 0,
-    studiedTopics: 0,
-  });
-  const [refreshing, setRefreshing] = useState(false);
-
-  type SubjectStat = {
-    name: string;
-    color: string;
-    icon: string;
-    completed: number;
-    total: number;
-    percent: number;
-  };
-  const [subjectStats, setSubjectStats] = useState<SubjectStat[]>([]);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadStats();
-    }, [])
-  );
-
-  const loadStats = async () => {
-    try {
-      const progress = await AsyncStorage.getItem('progress');
-      if (progress) {
-        const data = JSON.parse(progress);
-        let completed = 0;
-        let videos = 0;
-        let questions = 0;
-        let studied = 0;
-        let total = 0;
-
-        const subjectData = subjects.map(subject => {
-          let subjectCompleted = 0;
-          let subjectTotal = subject.topics.length;
-
-          subject.topics.forEach((_, index) => {
-            total++;
-            const topicData = data[subject.id]?.[index];
-            if (topicData) {
-              if (topicData.completed) {
-                completed++;
-                subjectCompleted++;
-              }
-              if (topicData.videoWatched) videos++;
-              if (topicData.questionsSolved) questions++;
-              if (topicData.studied) studied++;
-            }
-          });
-
-          return {
-            name: subject.name,
-            color: subject.color,
-            icon: subject.icon,
-            completed: subjectCompleted,
-            total: subjectTotal,
-            percent: subjectTotal > 0 ? Math.round((subjectCompleted / subjectTotal) * 100) : 0,
-          };
-        });
-
-        setStats({
-          totalTopics: total,
-          completedTopics: completed,
-          videosWatched: videos,
-          questionsSolved: questions,
-          studiedTopics: studied,
-        });
-
-        setSubjectStats(subjectData);
-      }
-    } catch (error) {
-      console.log('İstatistikler yüklenemedi:', error);
-    }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadStats();
-    setRefreshing(false);
-  };
-
-  return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-          colors={[colors.primary, colors.secondary]}
-          title="Yenileniyor..."
-          titleColor={colors.textSecondary}
-        />
-      }
-    >
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>İlerleme</Text>
-        <Text style={styles.headerSubtitle}>Performansını gör 📈</Text>
-      </View>
-
-      <View style={styles.statsCard}>
-        <Text style={styles.statsTitle}>Genel Durum</Text>
-        <View style={styles.statsGrid}>
-          <View style={[styles.progressStatItem, styles.statItemWithBg]}>
-            <View style={[styles.statIconContainer, {backgroundColor: `${colors.success}15`}]}>
-              <Icon name="book-check" size={36} color={colors.success} />
-            </View>
-            <Text style={styles.progressStatValue}>{stats.completedTopics}</Text>
-            <Text style={styles.progressStatLabel}>Tamamlanan</Text>
-          </View>
-          <View style={[styles.progressStatItem, styles.statItemWithBg]}>
-            <View style={[styles.statIconContainer, {backgroundColor: `${colors.primary}15`}]}>
-              <Icon name="book-open" size={36} color={colors.primary} />
-            </View>
-            <Text style={styles.progressStatValue}>{stats.studiedTopics}</Text>
-            <Text style={styles.progressStatLabel}>Çalışılan</Text>
-          </View>
-        </View>
-        <View style={styles.statsGrid}>
-          <View style={[styles.progressStatItem, styles.statItemWithBg]}>
-            <View style={[styles.statIconContainer, {backgroundColor: `${colors.secondary}15`}]}>
-              <Icon name="video" size={36} color={colors.secondary} />
-            </View>
-            <Text style={styles.progressStatValue}>{stats.videosWatched}</Text>
-            <Text style={styles.progressStatLabel}>Video</Text>
-          </View>
-          <View style={[styles.progressStatItem, styles.statItemWithBg]}>
-            <View style={[styles.statIconContainer, {backgroundColor: `${colors.warning}15`}]}>
-              <Icon name="file-document-edit" size={36} color={colors.warning} />
-            </View>
-            <Text style={styles.progressStatValue}>{stats.questionsSolved}</Text>
-            <Text style={styles.progressStatLabel}>Soru</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.statsCard}>
-        <Text style={styles.statsTitle}>Ders Bazlı İlerleme</Text>
-        {subjectStats.map((subject, index) => (
-          <View key={index} style={styles.subjectProgressItem}>
-            <View style={styles.subjectProgressHeader}>
-              <View style={styles.subjectProgressInfo}>
-                <Icon name={subject.icon} size={20} color={subject.color} />
-                <Text style={styles.subjectProgressName}>{subject.name}</Text>
-              </View>
-              <Text style={styles.subjectProgressPercent}>{subject.percent}%</Text>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <View 
-                style={[
-                  styles.progressBarFill, 
-                  {width: `${subject.percent}%`, backgroundColor: subject.color}
-                ]} 
-              />
-            </View>
-            <Text style={styles.subjectProgressDetails}>
-              {subject.completed}/{subject.total} konu tamamlandı
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.motivationCard}>
-        <Icon name="trophy" size={28} color="#F59E0B" />
-        <Text style={styles.motivationText}>
-          Harika gidiyorsun! Devam et! 🌟
-        </Text>
-      </View>
-    </ScrollView>
-  );
-}
-
-// Reports Screen
-function ReportsScreen() {
-  const [selectedReport, setSelectedReport] = useState<'daily' | 'weekly' | 'monthly' | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dailyLogs, setDailyLogs] = useState<DailyLogEntry[]>([]);
-  const [currentDayLog, setCurrentDayLog] = useState<DailyLogEntry | null>(null);
-  const [isAddingLog, setIsAddingLog] = useState(false);
-  const [newLogNotes, setNewLogNotes] = useState('');
-  const [newLogMood, setNewLogMood] = useState<'excellent' | 'good' | 'average' | 'challenging' | 'difficult'>('good');
-
-  const getTypeLabel = (type: string): string => {
-    switch (type) {
-      case 'studied': return 'Ders';
-      case 'video': return 'Video';
-      case 'questions': return 'Soru';
-      case 'completed': return 'Tamam';
-      default: return 'Diğer';
-    }
-  };
-
-  useEffect(() => {
-    loadDailyLogs();
-    loadTodayLog();
-  }, []);
-
-  // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      const refreshData = async () => {
-        await loadDailyLogs();
-        await loadTodayLog();
-      };
-      
-      refreshData();
-    }, [])
-  );
-
-  const loadDailyLogs = async () => {
-    try {
-      const data = await AsyncStorage.getItem('dailyLogs');
-      if (data) {
-        setDailyLogs(JSON.parse(data));
-      }
-    } catch (error) {
-      console.log('Daily logs yüklenemedi:', error);
-    }
-  };
-
-  const loadTodayLog = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    try {
-      const data = await AsyncStorage.getItem('dailyLogs');
-      if (data) {
-        const logs: DailyLogEntry[] = JSON.parse(data);
-        const todayLog = logs.find(log => log.date === today);
-        setCurrentDayLog(todayLog || null);
-      }
-    } catch (error) {
-      console.log('Today log yüklenemedi:', error);
-    }
-  };
-
-  const saveDailyLog = async (logEntry: DailyLogEntry) => {
-    try {
-      const existingLogs = [...dailyLogs];
-      const existingIndex = existingLogs.findIndex(log => log.date === logEntry.date);
-      
-      if (existingIndex >= 0) {
-        existingLogs[existingIndex] = logEntry;
-      } else {
-        existingLogs.push(logEntry);
-      }
-      
-      existingLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      await AsyncStorage.setItem('dailyLogs', JSON.stringify(existingLogs));
-      setDailyLogs(existingLogs);
-      
-      if (logEntry.date === new Date().toISOString().split('T')[0]) {
-        setCurrentDayLog(logEntry);
-      }
-    } catch (error) {
-      console.log('Daily log kaydedilemedi:', error);
-    }
-  };
-
-  const generateDailyReport = (date: string): DailyLogEntry | null => {
-    return dailyLogs.find(log => log.date === date) || null;
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const generateWeeklyReport = (weekStart: string): WeeklyReport => {
-    const weekEnd = new Date(new Date(weekStart).getTime() + 6 * 24 * 60 * 60 * 1000)
-      .toISOString().split('T')[0];
-    
-    const weekLogs = dailyLogs.filter(log => 
-      log.date >= weekStart && log.date <= weekEnd
-    );
-
-    const totalStudyTime = weekLogs.reduce((sum, log) => sum + log.studyTime, 0);
-    
-    const subjectBreakdown: { [key: string]: { timeSpent: number; topicsCompleted: number; progress: number } } = {};
-    
-    subjects.forEach(subject => {
-      const subjectTopics = weekLogs.flatMap(log => 
-        log.completedTopics.filter(topic => topic.subjectId === subject.id)
-      );
-      
-      subjectBreakdown[subject.id] = {
-        timeSpent: subjectTopics.reduce((sum, topic) => sum + topic.timeSpent, 0),
-        topicsCompleted: subjectTopics.length,
-        progress: Math.round((subjectTopics.length / subject.topics.length) * 100)
-      };
-    });
-
-    const achievements = [];
-    if (totalStudyTime > 20 * 60) achievements.push('20+ saat çalışma');
-    if (weekLogs.length >= 5) achievements.push('5+ gün düzenli çalışma');
-    
-    return {
-      weekStart,
-      weekEnd,
-      totalStudyTime,
-      dailyLogs: weekLogs,
-      subjectBreakdown,
-      achievements,
-      improvements: ['Daha fazla soru çözümü', 'Video izleme süresini artır'],
-      nextWeekGoals: ['Günlük 3 saat hedefi', 'Tüm derslere odaklan']
-    };
-  };
-
-  const getMoodIcon = (mood: string): string => {
-    switch (mood) {
-      case 'excellent': return 'emoticon-excited';
-      case 'good': return 'emoticon-happy';
-      case 'average': return 'emoticon-neutral';
-      case 'challenging': return 'emoticon-sad';
-      case 'difficult': return 'emoticon-cry';
-      default: return 'emoticon-neutral';
-    }
-  };
-
-  const getMoodColor = (mood: string): string => {
-    switch (mood) {
-      case 'excellent': return colors.success;
-      case 'good': return colors.primary;
-      case 'average': return colors.warning;
-      case 'challenging': return '#F59E0B';
-      case 'difficult': return colors.danger;
-      default: return colors.textMuted;
-    }
-  };
-
-  const getMoodText = (mood: string): string => {
-    switch (mood) {
-      case 'excellent': return 'Mükemmel';
-      case 'good': return 'İyi';
-      case 'average': return 'Orta';
-      case 'challenging': return 'Zorlandım';
-      case 'difficult': return 'Çok Zor';
-      default: return 'Belirtilmemiş';
-    }
-  };
-
-  if (selectedReport === 'daily') {
-    const dailyReport = generateDailyReport(selectedDate);
-    
-    if (isAddingLog) {
-      return (
-        <View style={styles.container}>
-          <View style={styles.reportHeader}>
-            <TouchableOpacity onPress={() => setIsAddingLog(false)}>
-              <Icon name="arrow-left" size={24} color={colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.reportHeaderTitle}>Günlük Kayıt Ekle</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                const newLog: DailyLogEntry = {
-                  date: selectedDate,
-                  studyTime: 60, // Default 1 hour
-                  completedTopics: [],
-                  totalProgress: {
-                    studied: 0,
-                    videosWatched: 0,
-                    questionsSolved: 0,
-                    completed: 0,
-                  },
-                  notes: newLogNotes,
-                  mood: newLogMood,
-                  goals: {
-                    planned: 5,
-                    achieved: 0,
-                  },
-                };
-                saveDailyLog(newLog);
-                setIsAddingLog(false);
-                setNewLogNotes('');
-              }}
-              style={styles.addLogButton}
-            >
-              <Icon name="check" size={20} color={colors.success} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.reportContent}>
-            <View style={styles.dailyLogForm}>
-              <Text style={styles.formTitle}>Günlük Değerlendirme</Text>
-              
-              <View style={styles.formSection}>
-                <Text style={styles.formLabel}>Günün Değerlendirmesi</Text>
-                <View style={styles.moodSelector}>
-                  {(['excellent', 'good', 'average', 'challenging', 'difficult'] as const).map((mood) => (
-                    <TouchableOpacity
-                      key={mood}
-                      onPress={() => setNewLogMood(mood)}
-                      style={[
-                        styles.moodOption,
-                        newLogMood === mood && styles.moodOptionSelected
-                      ]}
-                    >
-                      <Icon 
-                        name={getMoodIcon(mood)} 
-                        size={24} 
-                        color={newLogMood === mood ? colors.backgroundLight : getMoodColor(mood)} 
-                      />
-                      <Text style={[
-                        styles.moodOptionText,
-                        newLogMood === mood && styles.moodOptionTextSelected
-                      ]}>
-                        {getMoodText(mood)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.formSection}>
-                <Text style={styles.formLabel}>Notlar (İsteğe bağlı)</Text>
-                <TextInput
-                  style={styles.notesInput}
-                  placeholder="Bugün nasıl geçti? Notlarını buraya ekle..."
-                  placeholderTextColor={colors.textMuted}
-                  value={newLogNotes}
-                  onChangeText={setNewLogNotes}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-      );
-    }
-    
-    return (
-      <View style={styles.container}>
-        <View style={styles.reportHeader}>
-          <TouchableOpacity onPress={() => setSelectedReport(null)}>
-            <Icon name="arrow-left" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.reportHeaderTitle}>Günlük Rapor</Text>
-          <TouchableOpacity 
-            onPress={() => setIsAddingLog(true)}
-            style={styles.addLogButton}
-          >
-            <Icon name="plus" size={20} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.reportContent}>
-          <View style={styles.dateSelector}>
-            <TouchableOpacity 
-              onPress={() => {
-                const prevDay = new Date(selectedDate);
-                prevDay.setDate(prevDay.getDate() - 1);
-                setSelectedDate(prevDay.toISOString().split('T')[0]);
-              }}
-              style={styles.dateNavButton}
-            >
-              <Icon name="chevron-left" size={20} color={colors.primary} />
-            </TouchableOpacity>
-            <Text style={styles.selectedDate}>{selectedDate}</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                const nextDay = new Date(selectedDate);
-                nextDay.setDate(nextDay.getDate() + 1);
-                if (nextDay <= new Date()) {
-                  setSelectedDate(nextDay.toISOString().split('T')[0]);
-                }
-              }}
-              style={styles.dateNavButton}
-            >
-              <Icon name="chevron-right" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {dailyReport ? (
-            <View style={styles.dailyReportCard}>
-              <View style={styles.studyTimeSection}>
-                <Icon name="clock" size={24} color={colors.primary} />
-                <Text style={styles.studyTimeText}>
-                  {Math.floor(dailyReport.studyTime / 60)}s {dailyReport.studyTime % 60}dk
-                </Text>
-              </View>
-
-              <View style={styles.moodSection}>
-                <Text style={styles.sectionTitle}>Günün Değerlendirmesi</Text>
-                <View style={styles.moodIndicator}>
-                  <Icon 
-                    name={getMoodIcon(dailyReport.mood)} 
-                    size={32} 
-                    color={getMoodColor(dailyReport.mood)} 
-                  />
-                  <Text style={styles.moodText}>{getMoodText(dailyReport.mood)}</Text>
-                </View>
-              </View>
-
-              <View style={styles.topicsSection}>
-                <Text style={styles.sectionTitle}>Tamamlanan Konular ({dailyReport.completedTopics.length})</Text>
-                {dailyReport.completedTopics.length > 0 ? (
-                  dailyReport.completedTopics.map((topic, index) => (
-                    <View key={index} style={styles.topicItem}>
-                      <View style={styles.topicInfo}>
-                        <Text style={styles.topicName}>{topic.topicName}</Text>
-                        <Text style={styles.topicType}>{getTypeLabel(topic.type)}</Text>
-                      </View>
-                      <Text style={styles.topicTime}>{topic.timeSpent}dk</Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.noTopicsText}>Henüz konu tamamlanmamış</Text>
-                )}
-              </View>
-
-              <View style={styles.progressSummary}>
-                <Text style={styles.sectionTitle}>Günlük Özet</Text>
-                <View style={styles.progressStats}>
-                  <View style={styles.progressStat}>
-                    <Icon name="book-check" size={16} color={colors.success} />
-                    <Text style={styles.progressStatText}>{dailyReport.totalProgress.studied} Ders</Text>
-                  </View>
-                  <View style={styles.progressStat}>
-                    <Icon name="video" size={16} color={colors.primary} />
-                    <Text style={styles.progressStatText}>{dailyReport.totalProgress.videosWatched} Video</Text>
-                  </View>
-                  <View style={styles.progressStat}>
-                    <Icon name="file-document-edit" size={16} color={colors.warning} />
-                    <Text style={styles.progressStatText}>{dailyReport.totalProgress.questionsSolved} Soru</Text>
-                  </View>
-                  <View style={styles.progressStat}>
-                    <Icon name="check-circle" size={16} color={colors.secondary} />
-                    <Text style={styles.progressStatText}>{dailyReport.totalProgress.completed} Tamam</Text>
-                  </View>
-                </View>
-              </View>
-
-              {dailyReport.notes && (
-                <View style={styles.notesSection}>
-                  <Text style={styles.sectionTitle}>Notlar</Text>
-                  <Text style={styles.notesText}>{dailyReport.notes}</Text>
-                </View>
-              )}
-            </View>
-          ) : (
-            <View style={styles.noDataCard}>
-              <Icon name="calendar-blank" size={48} color={colors.textMuted} />
-              <Text style={styles.noDataText}>Bu gün için kayıt bulunamadı</Text>
+      {/* Study Goal Modal */}
+      <Modal
+        visible={showGoalModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowGoalModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                🎯 Çalışma Hedefi - {selectedCourse?.courseName}
+              </Text>
               <TouchableOpacity 
-                onPress={() => setIsAddingLog(true)}
-                style={styles.addLogButtonLarge}
+                onPress={() => setShowGoalModal(false)}
+                style={styles.modalCloseButton}
               >
-                <Text style={styles.addLogButtonText}>Günlük Kayıt Ekle</Text>
+                <Icon name="close" size={24} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-          )}
-        </ScrollView>
-      </View>
-    );
-  }
 
-  const getTypeLabel = (type: string): string => {
-    switch (type) {
-      case 'studied': return 'Ders';
-      case 'video': return 'Video';
-      case 'questions': return 'Soru';
-      case 'completed': return 'Tamam';
-      default: return 'Diğer';
-    }
+            <ScrollView style={styles.modalBody}>
+              {selectedCourse && (
+                <>
+                  {/* Topic Selection - only for regular courses */}
+                  {!selectedCourse.isCustomActivity && (
+                    <>
+                      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                        Konular Seçin:
+                      </Text>
+                      <View style={styles.topicsContainer}>
+                        {courses
+                          .find(c => c.id === selectedCourse.courseId)
+                          ?.topics.map((topic) => (
+                            <TouchableOpacity
+                              key={topic.id}
+                              style={[
+                                styles.topicItem,
+                                {
+                                  backgroundColor: goalTopics.includes(topic.id)
+                                    ? colors.primary + '15'
+                                    : colors.background,
+                                  borderColor: goalTopics.includes(topic.id)
+                                    ? colors.primary
+                                    : colors.border,
+                                },
+                              ]}
+                              onPress={() => toggleGoalTopic(topic.id)}
+                            >
+                              <Text
+                                style={[
+                                  styles.topicItemText,
+                                  {
+                                    color: goalTopics.includes(topic.id)
+                                      ? colors.primary
+                                      : colors.text,
+                                  },
+                                ]}
+                              >
+                                {topic.name}
+                              </Text>
+                              {goalTopics.includes(topic.id) && (
+                                <Icon name="check-circle" size={20} color={colors.primary} />
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                      </View>
+                    </>
+                  )}
+
+                  {/* Custom Activity Note */}
+                  {selectedCourse.isCustomActivity && (
+                    <View style={[styles.instructionsCard, { backgroundColor: colors.backgroundLight, marginBottom: 20 }]}>
+                      <Icon name="information" size={20} color={colors.info} />
+                      <Text style={[styles.instructionsText, { color: colors.textLight }]}>
+                        Özel aktiviteler için sadece süre ve soru hedefi belirleyebilirsiniz.
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Study Time */}
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Çalışma Süresi (Dakika):
+                  </Text>
+                  <View style={styles.questionContainer}>
+                    <TouchableOpacity
+                      style={[styles.timeButton, { backgroundColor: colors.border }]}
+                      onPress={() => setGoalStudyTime(Math.max(15, goalStudyTime - 15))}
+                    >
+                      <Icon name="minus" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                    <Text style={[styles.questionValue, { color: colors.text }]}>{goalStudyTime}</Text>
+                    <TouchableOpacity
+                      style={[styles.timeButton, { backgroundColor: colors.border }]}
+                      onPress={() => setGoalStudyTime(goalStudyTime + 15)}
+                    >
+                      <Icon name="plus" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Question Count */}
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Soru Sayısı:
+                  </Text>
+                  <View style={styles.questionContainer}>
+                    <TouchableOpacity
+                      style={[styles.timeButton, { backgroundColor: colors.border }]}
+                      onPress={() => setGoalQuestions(Math.max(0, goalQuestions - 5))}
+                    >
+                      <Icon name="minus" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                    <Text style={[styles.questionValue, { color: colors.text }]}>{goalQuestions}</Text>
+                    <TouchableOpacity
+                      style={[styles.timeButton, { backgroundColor: colors.border }]}
+                      onPress={() => setGoalQuestions(goalQuestions + 5)}
+                    >
+                      <Icon name="plus" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowGoalModal(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={() => selectedCourse && createGoalForCourse(selectedCourse)}
+              >
+                <Text style={styles.modalButtonText}>Hedef Oluştur</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Activity Modal */}
+      <Modal
+        visible={showCustomActivityModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCustomActivityModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                ✨ Özel Aktivite Oluştur - {selectedDay?.dayName}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowCustomActivityModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* Activity Name */}
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Aktivite Adı:
+              </Text>
+              <TextInput
+                style={[styles.textInput, { 
+                  backgroundColor: colors.backgroundLight, 
+                  color: colors.text,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  fontSize: 16,
+                  marginBottom: 20
+                }]}
+                value={customActivityName}
+                onChangeText={setCustomActivityName}
+                placeholder="Örn: Kişisel Tekrar, Yazma Çalışması"
+                placeholderTextColor={colors.textMuted}
+              />
+
+              {/* Icon Selection */}
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                İkon Seçin:
+              </Text>
+              <View style={styles.iconSelectionContainer}>
+                {[
+                  'book-outline', 'pencil-outline', 'note-text-outline', 'clipboard-text-outline',
+                  'brain', 'lightbulb-outline', 'star-outline', 'target',
+                  'clock-outline', 'calendar-outline', 'bookmark-outline', 'trophy-outline'
+                ].map((iconName) => (
+                  <TouchableOpacity
+                    key={iconName}
+                    style={[
+                      styles.iconSelectButton, 
+                      { 
+                        backgroundColor: customActivityIcon === iconName ? colors.primary + '20' : colors.backgroundLight,
+                        borderColor: customActivityIcon === iconName ? colors.primary : colors.border
+                      }
+                    ]}
+                    onPress={() => setCustomActivityIcon(iconName)}
+                  >
+                    <Icon name={iconName} size={24} color={customActivityIcon === iconName ? colors.primary : colors.textMuted} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Color Selection */}
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Renk Seçin:
+              </Text>
+              <View style={styles.colorSelectionContainer}>
+                {[
+                  colors.primary, colors.secondary, colors.success, colors.warning, 
+                  colors.danger, colors.info, '#9333EA', '#EC4899', '#F97316', '#84CC16'
+                ].map((colorOption) => (
+                  <TouchableOpacity
+                    key={colorOption}
+                    style={[
+                      styles.colorSelectButton,
+                      { 
+                        backgroundColor: colorOption,
+                        borderColor: customActivityColor === colorOption ? colors.text : 'transparent',
+                        borderWidth: customActivityColor === colorOption ? 3 : 0
+                      }
+                    ]}
+                    onPress={() => setCustomActivityColor(colorOption)}
+                  >
+                    {customActivityColor === colorOption && (
+                      <Icon name="check" size={16} color="white" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Preview */}
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Önizleme:
+              </Text>
+              <View style={[styles.activityPreview, { backgroundColor: colors.backgroundLight, borderLeftColor: customActivityColor }]}>
+                <View style={[styles.courseSelectIcon, { backgroundColor: customActivityColor + '15' }]}>
+                  <Icon name={customActivityIcon} size={24} color={customActivityColor} />
+                </View>
+                <View style={styles.courseSelectInfo}>
+                  <Text style={[styles.courseSelectName, { color: colors.text }]}>
+                    {customActivityName || 'Aktivite Adı'}
+                  </Text>
+                  <Text style={[styles.courseSelectTopics, { color: colors.textLight }]}>
+                    Özel Aktivite
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowCustomActivityModal(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { 
+                  backgroundColor: customActivityName.trim() ? colors.primary : colors.border 
+                }]}
+                onPress={() => {
+                  if (selectedDay && customActivityName.trim()) {
+                    addCustomActivityToDay(selectedDay.id, customActivityName.trim(), customActivityIcon, customActivityColor);
+                    setShowCustomActivityModal(false);
+                    setCustomActivityName('');
+                  }
+                }}
+                disabled={!customActivityName.trim()}
+              >
+                <Text style={[styles.modalButtonText, { 
+                  color: customActivityName.trim() ? 'white' : colors.textMuted 
+                }]}>Aktivite Ekle</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Course Goal Details Modal */}
+      <Modal
+        visible={showCourseGoalModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCourseGoalModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                🎯 {selectedCourse?.courseName} Hedefleri
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowCourseGoalModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {selectedCourse && (
+                <View style={styles.goalDetailsContainer}>
+                  <View style={[styles.goalSummaryCard, { backgroundColor: colors.backgroundLight }]}>
+                    <View style={styles.goalSummaryHeader}>
+                      <Icon name="target" size={24} color={colors.primary} />
+                      <Text style={[styles.goalSummaryTitle, { color: colors.text }]}>Bugünün Hedefleri</Text>
+                    </View>
+                    
+                    <Text style={[styles.goalSummarySubtext, { color: colors.textLight }]}>
+                      Bu dersin günlük hedeflerini buradan takip edebilirsiniz
+                    </Text>
+                    
+                    {/* Goal Stats Row */}
+                    <View style={styles.goalStatsRow}>
+                      <View style={styles.goalStatItem}>
+                        <Text style={[styles.goalStatNumber, { color: colors.primary }]}>0</Text>
+                        <Text style={[styles.goalStatLabel, { color: colors.textMuted }]}>Konu</Text>
+                      </View>
+                      <View style={styles.goalStatItem}>
+                        <Text style={[styles.goalStatNumber, { color: colors.secondary }]}>0</Text>
+                        <Text style={[styles.goalStatLabel, { color: colors.textMuted }]}>Dakika</Text>
+                      </View>
+                      <View style={styles.goalStatItem}>
+                        <Text style={[styles.goalStatNumber, { color: colors.success }]}>0</Text>
+                        <Text style={[styles.goalStatLabel, { color: colors.textMuted }]}>Soru</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* No Goals Message */}
+                  <View style={[styles.noGoalsCard, { backgroundColor: colors.backgroundLight }]}>
+                    <Icon name="information-outline" size={48} color={colors.textMuted} />
+                    <Text style={[styles.noGoalsTitle, { color: colors.text }]}>
+                      Henüz Hedef Belirlenmemiş
+                    </Text>
+                    <Text style={[styles.noGoalsSubtext, { color: colors.textLight }]}>
+                      Bu ders için günlük çalışma hedefi oluşturmak ister misiniz?
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowCourseGoalModal(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>Kapat</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  setShowCourseGoalModal(false);
+                  if (selectedCourse) {
+                    setGoalTopics([]);
+                    setGoalStudyTime(60);
+                    setGoalQuestions(10);
+                    setShowGoalModal(true);
+                  }
+                }}
+              >
+                <Text style={styles.modalButtonText}>Hedef Oluştur</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Day Details Modal */}
+      <Modal
+        visible={showDayDetailsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowDayDetailsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                📅 {selectedDay?.dayName} Detayları
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowDayDetailsModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {selectedDay && (
+                <View>
+                  {/* Day Overview */}
+                  <View style={[styles.dayOverviewCard, { backgroundColor: colors.backgroundLight }]}>
+                    <View style={styles.dayOverviewHeader}>
+                      <View style={styles.dayOverviewInfo}>
+                        <Text style={[styles.dayOverviewTitle, { color: colors.text }]}>
+                          {selectedDay.dayName}
+                          {selectedDay.isToday && (
+                            <View style={[styles.todayBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
+                              <Text style={styles.todayBadgeText}>BUGÜN</Text>
+                            </View>
+                          )}
+                        </Text>
+                        <Text style={[styles.dayOverviewSubtitle, { color: colors.textLight }]}>
+                          {selectedDay.courses.length} ders planlandı
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.addCourseButton, { backgroundColor: colors.primary }]}
+                        onPress={() => {
+                          setShowDayDetailsModal(false);
+                          setShowCourseModal(true);
+                        }}
+                      >
+                        <Icon name="plus" size={20} color="white" />
+                        <Text style={styles.addCourseButtonText}>Ders Ekle</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Courses Section */}
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    📚 Planlanan Dersler
+                  </Text>
+                  
+                  {selectedDay.courses.length > 0 ? (
+                    selectedDay.courses
+                      .sort((a, b) => a.order - b.order)
+                      .map((course) => (
+                        <TouchableOpacity
+                          key={course.id}
+                          style={[styles.dayDetailsCourseItem, { 
+                            backgroundColor: colors.backgroundLight,
+                            borderLeftColor: course.color
+                          }]}
+                          onPress={() => {
+                            setSelectedCourse(course);
+                            setShowDayDetailsModal(false);
+                            showCourseGoal(course);
+                          }}
+                        >
+                          <View style={[styles.dayDetailsCourseIcon, { backgroundColor: course.color + '15' }]}>
+                            <Icon name={course.icon} size={20} color={course.color} />
+                          </View>
+                          <View style={styles.dayDetailsCourseInfo}>
+                            <Text style={[styles.dayDetailsCourseName, { color: colors.text }]}>
+                              {course.courseName}
+                              {course.isCustomActivity && (
+                                <Text style={[styles.customBadge, { color: colors.textMuted }]}> (Özel)</Text>
+                              )}
+                            </Text>
+                            <Text style={[styles.courseGoalText, { color: colors.textLight }]}>
+                              Hedef için tıklayın
+                            </Text>
+                          </View>
+                          <Icon name="chevron-right" size={20} color={colors.textMuted} />
+                        </TouchableOpacity>
+                      ))
+                  ) : (
+                    <View style={[styles.emptyCoursesCard, { backgroundColor: colors.backgroundLight }]}>
+                      <Icon name="book-outline" size={48} color={colors.textMuted} />
+                      <Text style={[styles.emptyCoursesTitle, { color: colors.text }]}>
+                        Henüz Ders Eklenmemiş
+                      </Text>
+                      <Text style={[styles.emptyCoursesSubtext, { color: colors.textLight }]}>
+                        Bu güne ders eklemek için yukarıdaki "Ders Ekle" butonunu kullanın.
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Goals Section */}
+                  <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>
+                    🎯 Günlük Hedefler
+                  </Text>
+                  
+                  <View style={[styles.goalsOverviewCard, { backgroundColor: colors.backgroundLight }]}>
+                    <View style={styles.goalsOverviewHeader}>
+                      <Icon name="target" size={24} color={colors.primary} />
+                      <Text style={[styles.goalsOverviewTitle, { color: colors.text }]}>Bugünün Hedefleri</Text>
+                    </View>
+                    <Text style={[styles.goalsOverviewSubtext, { color: colors.textLight }]}>
+                      Her ders için ayrı hedefler belirleyebilir ve ilerlemelerinizi takip edebilirsiniz.
+                    </Text>
+                    
+                    <View style={styles.goalStatsContainer}>
+                      <View style={styles.goalStatItem}>
+                        <Text style={[styles.goalStatNumber, { color: colors.primary }]}>
+                          {selectedDay.courses.length}
+                        </Text>
+                        <Text style={[styles.goalStatLabel, { color: colors.textMuted }]}>Ders</Text>
+                      </View>
+                      <View style={styles.goalStatItem}>
+                        <Text style={[styles.goalStatNumber, { color: colors.success }]}>0</Text>
+                        <Text style={[styles.goalStatLabel, { color: colors.textMuted }]}>Hedef</Text>
+                      </View>
+                      <View style={styles.goalStatItem}>
+                        <Text style={[styles.goalStatNumber, { color: colors.secondary }]}>0%</Text>
+                        <Text style={[styles.goalStatLabel, { color: colors.textMuted }]}>Tamamlandı</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.border }]}
+                onPress={() => setShowDayDetailsModal(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.textMuted }]}>Kapat</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.warning }]}
+                onPress={() => {
+                  setShowDayDetailsModal(false);
+                  if (selectedDay) {
+                    resetDay(selectedDay.id);
+                  }
+                }}
+              >
+                <Text style={styles.modalButtonText}>Günü Sıfırla</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+// Settings Screen Component
+function SettingsScreen() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  const clearAllData = () => {
+    Alert.alert(
+      '⚠️ Uyarı',
+      'Tüm verileriniz silinecek. Bu işlem geri alınamaz!',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.multiRemove(['progress', 'studySessions', 'dailyGoals', 'studyLogs', 'courses', 'customWeeklySchedule']);
+              Alert.alert('✅', 'Tüm veriler temizlendi!');
+            } catch (error) {
+              Alert.alert('❌', 'Veri temizleme sırasında hata oluştu');
+            }
+          }
+        }
+      ]
+    );
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSaveDailyLog = () => {
-    // This will be implemented by the DailyLogForm component
+  const handleThemeToggle = () => {
+    // TODO: Implement theme toggle functionality
+    Alert.alert('Tema Değişikliği', 'Bu özellik yakında eklenecek!');
+  };
+
+  const handleNotificationToggle = () => {
+    // TODO: Implement notification toggle functionality
+    Alert.alert('Bildirim Ayarları', 'Bu özellik yakında eklenecek!');
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.reportsHeader}>
-        <Text style={styles.reportsHeaderTitle}>İlerleme Raporları</Text>
-        <Text style={styles.reportsHeaderSubtitle}>Detaylı analiz ve takip 📊</Text>
-      </View>
-
-      <View style={styles.reportTypesGrid}>
-        <TouchableOpacity 
-          style={[styles.reportTypeCard, {borderLeftColor: colors.success}]}
-          onPress={() => setSelectedReport('daily')}
-        >
-          <Icon name="calendar-today" size={32} color={colors.success} />
-          <Text style={styles.reportTypeTitle}>Günlük Rapor</Text>
-          <Text style={styles.reportTypeDesc}>Günlük çalışma detayları</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.reportTypeCard, {borderLeftColor: colors.primary}]}
-          onPress={() => setSelectedReport('weekly')}
-        >
-          <Icon name="calendar-week" size={32} color={colors.primary} />
-          <Text style={styles.reportTypeTitle}>Haftalık Rapor</Text>
-          <Text style={styles.reportTypeDesc}>Haftalık ilerleme özeti</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.reportTypeCard, {borderLeftColor: colors.warning}]}
-          onPress={() => setSelectedReport('monthly')}
-        >
-          <Icon name="calendar-month" size={32} color={colors.warning} />
-          <Text style={styles.reportTypeTitle}>Aylık Rapor</Text>
-          <Text style={styles.reportTypeDesc}>Aylık performans analizi</Text>
-        </TouchableOpacity>
-      </View>
-
-      {currentDayLog && (
-        <View style={styles.todayPreview}>
-          <Text style={styles.todayPreviewTitle}>Bugünün Özeti</Text>
-          <View style={styles.todayStats}>
-            <View style={styles.todayStat}>
-              <Icon name="clock" size={20} color={colors.primary} />
-              <Text style={styles.todayStatText}>
-                {Math.floor(currentDayLog.studyTime / 60)}s {currentDayLog.studyTime % 60}dk
-              </Text>
-            </View>
-            <View style={styles.todayStat}>
-              <Icon name="check-circle" size={20} color={colors.success} />
-              <Text style={styles.todayStatText}>
-                {currentDayLog.completedTopics.length} konu
+    <View style={styles.container}>
+      <View style={[styles.modernHeader, { backgroundColor: colors.primary }]}>
+        <View style={styles.headerGradientOverlay}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.modernHeaderTitle}>Ayarlar</Text>
+              <Text style={styles.modernHeaderSubtitle}>
+                Tercihlerini yönetin 
               </Text>
             </View>
           </View>
         </View>
-      )}
-    </ScrollView>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
+        {/* Theme Settings */}
+        <View style={styles.settingsSection}>
+          <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>🎨 Görünüm</Text>
+          <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+            <TouchableOpacity onPress={handleThemeToggle} style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.primary + '15' }]}>
+                  <Icon name="palette" size={24} color={colors.primary} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Tema</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Açık veya koyu tema seçin
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <Text style={[styles.settingsValue, { color: colors.primary }]}>
+                  {isDarkMode ? 'Koyu' : 'Açık'}
+                </Text>
+                <Icon name="chevron-right" size={20} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Notification Settings */}
+        <View style={styles.settingsSection}>
+          <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>🔔 Bildirimler</Text>
+          <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+            <TouchableOpacity onPress={handleNotificationToggle} style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.secondary + '15' }]}>
+                  <Icon name="bell" size={24} color={colors.secondary} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Günlük Hatırlatmalar</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Çalışma hatırlatmaları ve motivasyon mesajları
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <View style={[
+                  styles.switchContainer, 
+                  { backgroundColor: notificationsEnabled ? colors.success : colors.border }
+                ]}>
+                  <View style={[
+                    styles.switchThumb,
+                    { 
+                      backgroundColor: 'white',
+                      transform: [{ translateX: notificationsEnabled ? 20 : 2 }]
+                    }
+                  ]} />
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.settingsDivider} />
+
+            <TouchableOpacity style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.info + '15' }]}>
+                  <Icon name="clock-alert" size={24} color={colors.info} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Çalışma Saatleri</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Hangi saatlerde bildirim almak istediğinizi belirleyin
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <Text style={[styles.settingsValue, { color: colors.info }]}>09:00 - 18:00</Text>
+                <Icon name="chevron-right" size={20} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* App Information */}
+        <View style={styles.settingsSection}>
+          <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>ℹ️ Uygulama Bilgileri</Text>
+          <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+            <View style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.info + '15' }]}>
+                  <Icon name="information" size={24} color={colors.info} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Sürüm</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Uygulama sürüm bilgisi
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <Text style={[styles.settingsValue, { color: colors.text }]}>1.0.0</Text>
+              </View>
+            </View>
+
+            <View style={styles.settingsDivider} />
+
+            <View style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.success + '15' }]}>
+                  <Icon name="account-group" size={24} color={colors.success} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Geliştirici</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    nevzattalhaozcan
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.settingsDivider} />
+
+            <View style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.warning + '15' }]}>
+                  <Icon name="calendar-today" size={24} color={colors.warning} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Son Güncelleme</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Ekim 2025
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Data Management */}
+        <View style={styles.settingsSection}>
+          <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>🗂️ Veri Yönetimi</Text>
+          <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+            <TouchableOpacity onPress={clearAllData} style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.danger + '15' }]}>
+                  <Icon name="delete-forever" size={24} color={colors.danger} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.danger }]}>Tüm Verileri Temizle</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Bu işlem geri alınamaz! Dikkatli olun.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <Icon name="chevron-right" size={20} color={colors.danger} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-// Tab Navigator
 const Tab = createBottomTabNavigator();
 
-const getTabBarIcon = (routeName: string, color: string, size: number) => {
-  let iconName: string;
-  if (routeName === 'Ana Sayfa') iconName = 'home';
-  else if (routeName === 'Dersler') iconName = 'book-open-page-variant';
-  else if (routeName === 'Ajanda') iconName = 'calendar';
-  else if (routeName === 'İlerleme') iconName = 'chart-line';
-  else if (routeName === 'Raporlar') iconName = 'file-chart';
-  else if (routeName === 'Ayarlar') iconName = 'cog';
-  else iconName = 'help-circle';
+const getTabBarIcon = (route: any, color: string, size: number) => {
+  let iconName = '';
+
+  if (route.name === 'Ana Sayfa') {
+    iconName = 'home';
+  } else if (route.name === 'Dersler') {
+    iconName = 'book-multiple';
+  } else if (route.name === 'Ajanda') {
+    iconName = 'calendar-week';
+  } else if (route.name === 'Raporlar') {
+    iconName = 'file-chart';
+  } else if (route.name === 'Ayarlar') {
+    iconName = 'cog';
+  }
+
   return <Icon name={iconName} size={size} color={color} />;
 };
 
-function App() {
-  const [weeklySchedule, setWeeklySchedule] = useState(defaultWeeklySchedule);
+function AppContent() {
+  const [_weeklySchedule, _setWeeklySchedule] = useState(defaultWeeklySchedule);
+  const navigationRef = useRef<any>(null);
+  
+  // Animation states for smooth swipe feedback
+  const swipeAnimation = useRef(new Animated.Value(0)).current;
+  const scaleAnimation = useRef(new Animated.Value(1)).current;
+  const [isGesturing, setIsGesturing] = useState(false);
 
-  // Load custom schedule from storage
   useEffect(() => {
-    loadCustomSchedule();
-    // Initialize daily report notifications
-    scheduleEndOfDayNotification();
-    
-    // Check if we should show daily report notification
-    const checkDailyReport = async () => {
-      const lastReportDate = await AsyncStorage.getItem('lastDailyReportDate');
-      const today = new Date().toISOString().split('T')[0];
-      
-      if (lastReportDate !== today) {
-        // Show notification for previous day's report
-        setTimeout(() => {
-          showDailyReportReadyNotification();
-        }, 5000); // Delay 5 seconds after app launch
-      }
-    };
-    
-    checkDailyReport();
+    // Configure notifications on app start
+    PushNotification.configure({
+      onNotification: function(notification) {
+        console.log('NOTIFICATION:', notification);
+      },
+      requestPermissions: Platform.OS === 'ios',
+    });
   }, []);
 
-  const loadCustomSchedule = async () => {
-    try {
-      const customSchedule = await AsyncStorage.getItem('customSchedule');
-      if (customSchedule) {
-        setWeeklySchedule(JSON.parse(customSchedule));
-      }
-    } catch (error) {
-      console.log('Custom schedule loading error:', error);
-    }
-  };
+  // Create enhanced pan responder for swipe gestures with smooth animations
+  const screenWidth = Dimensions.get('window').width;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal swipes with minimum movement
+        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        const hasMinMovement = Math.abs(gestureState.dx) > 15;
+        return isHorizontal && hasMinMovement;
+      },
+      onPanResponderGrant: () => {
+        // Start gesture - add visual feedback
+        setIsGesturing(true);
+        Animated.parallel([
+          Animated.timing(scaleAnimation, {
+            toValue: 0.98,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(swipeAnimation, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Provide real-time visual feedback during swipe
+        if (isGesturing) {
+          const maxSwipe = screenWidth * 0.3;
+          const normalizedDx = Math.max(-maxSwipe, Math.min(maxSwipe, gestureState.dx));
+          const opacity = Math.abs(normalizedDx) / maxSwipe;
+          
+          swipeAnimation.setValue(normalizedDx * 0.3);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const swipeThreshold = screenWidth * 0.25;
+        setIsGesturing(false);
+        
+        // Smooth return animation
+        Animated.parallel([
+          Animated.spring(scaleAnimation, {
+            toValue: 1,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          Animated.spring(swipeAnimation, {
+            toValue: 0,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]).start();
 
-  const saveCustomSchedule = async (newSchedule: typeof defaultWeeklySchedule) => {
-    try {
-      await AsyncStorage.setItem('customSchedule', JSON.stringify(newSchedule));
-      setWeeklySchedule(newSchedule);
-    } catch (error) {
-      console.log('Custom schedule saving error:', error);
-    }
-  };
+        if (navigationRef.current) {
+          try {
+            const state = navigationRef.current.getState();
+            
+            // Check if state exists and has the required properties
+            if (state && typeof state.index === 'number' && state.routes && Array.isArray(state.routes)) {
+              const currentIndex = state.index;
+              const routes = state.routes;
+              
+              if (gestureState.dx > swipeThreshold && currentIndex > 0) {
+                // Swipe right - go to previous tab with haptic feedback
+                if (Platform.OS === 'android') {
+                  // Add subtle vibration feedback for Android
+                  // HapticFeedback.impact(HapticFeedback.ImpactFeedbackStyle.Light);
+                }
+                navigationRef.current.navigate(routes[currentIndex - 1].name);
+              } else if (gestureState.dx < -swipeThreshold && currentIndex < routes.length - 1) {
+                // Swipe left - go to next tab with haptic feedback  
+                if (Platform.OS === 'android') {
+                  // Add subtle vibration feedback for Android
+                  // HapticFeedback.impact(HapticFeedback.ImpactFeedbackStyle.Light);
+                }
+                navigationRef.current.navigate(routes[currentIndex + 1].name);
+              }
+            }
+          } catch (error) {
+            console.log('Navigation state error:', error);
+          }
+        }
+      },
+      onPanResponderTerminate: () => {
+        // Reset animations if gesture is interrupted
+        setIsGesturing(false);
+        Animated.parallel([
+          Animated.spring(scaleAnimation, {
+            toValue: 1,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          Animated.spring(swipeAnimation, {
+            toValue: 0,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      },
+    })
+  ).current;
 
   return (
-    <>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <NavigationContainer>
-        <Tab.Navigator
-          screenOptions={({route}) => ({
-            tabBarIcon: ({ color, size }) => getTabBarIcon(route.name, color, size),
-            tabBarActiveTintColor: colors.primary,
-            tabBarInactiveTintColor: colors.textLight,
-            tabBarStyle: styles.tabBar,
-            headerShown: false,
-            tabBarLabelStyle: styles.tabBarLabel,
-          })}>
-          <Tab.Screen name="Ana Sayfa">
-            {(props) => <HomeScreen {...props} weeklySchedule={weeklySchedule} />}
-          </Tab.Screen>
-          <Tab.Screen name="Dersler" component={SubjectsScreen} />
-          <Tab.Screen name="Ajanda">
-            {(props) => <ScheduleScreen {...props} weeklySchedule={weeklySchedule} saveCustomSchedule={saveCustomSchedule} />}
-          </Tab.Screen>
-          <Tab.Screen name="İlerleme" component={ProgressScreen} />
-          <Tab.Screen name="Raporlar" component={ReportsScreen} />
-          <Tab.Screen name="Ayarlar" component={SettingsScreen} />
-        </Tab.Navigator>
-      </NavigationContainer>
-    </>
+    <Animated.View 
+      style={[
+        styles.swipeContainer,
+        {
+          transform: [
+            { translateX: swipeAnimation },
+            { scale: scaleAnimation }
+          ]
+        }
+      ]} 
+      {...panResponder.panHandlers}
+    >
+      {/* Swipe Visual Feedback */}
+      {isGesturing && (
+        <View style={styles.swipeIndicatorContainer} pointerEvents="none">
+          <Animated.View 
+            style={[
+              styles.swipeIndicator,
+              {
+                opacity: swipeAnimation.interpolate({
+                  inputRange: [-100, 0, 100],
+                  outputRange: [0.3, 0, 0.3],
+                  extrapolate: 'clamp'
+                })
+              }
+            ]}
+          />
+        </View>
+      )}
+      
+      <NavigationContainer ref={navigationRef}>
+        <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
+      <Tab.Navigator
+        screenOptions={({route}) => ({
+          headerShown: false,
+          tabBarIcon: ({color, size}) => getTabBarIcon(route, color, size),
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarStyle: {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            borderTopWidth: 1,
+            height: Platform.OS === 'ios' ? 90 : 70,
+            paddingBottom: Platform.OS === 'ios' ? 25 : 15,
+            paddingTop: 10,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+          },
+        })}
+      >
+        <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
+        <Tab.Screen name="Dersler" component={CoursesScreen} />
+        <Tab.Screen name="Ajanda" component={AgendaScreen} />
+        <Tab.Screen name="Raporlar" component={ReportsScreen} />
+        <Tab.Screen name="Ayarlar" component={SettingsScreen} />
+      </Tab.Navigator>
+    </NavigationContainer>
+    </Animated.View>
   );
+}
+
+export default function App() {
+  return <AppContent />;
 }
 
 const styles = StyleSheet.create({
@@ -2575,1341 +4583,2202 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    padding: 24,
-    paddingTop: Platform.OS === 'ios' ? 60 : 32,
-    paddingBottom: 32,
+  swipeContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 8,
-    letterSpacing: -0.5,
+  swipeIndicatorContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  headerSubtitle: {
-    fontSize: 18,
-    color: colors.textLight,
-    fontWeight: '500',
-  },
-  todayCard: {
-    backgroundColor: colors.card,
-    marginHorizontal: 24,
-    marginBottom: 20,
-    padding: 24,
-    borderRadius: 20,
-    borderLeftWidth: 5,
-    elevation: 3,
+  swipeIndicator: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  todayHeader: {
+  centerText: {
+    textAlign: 'center',
+    marginTop: 100,
+    fontSize: 18,
+    color: colors.text,
+  },
+  homeContent: {
+    paddingTop: 25,
+    paddingBottom: 100,
+  },
+  topSection: {
+    marginBottom: 20,
+  },
+  modernHeader: {
+    paddingTop: 35,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  headerGradientOverlay: {
+    borderRadius: 20,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  modernHeaderTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+    color: 'white',
+  },
+  modernHeaderSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  headerStats: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  headerStatItem: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  headerStatNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  headerStatLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  modernTodayCard: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  todayCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  subjectIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  todayCardInfo: {
+    flex: 1,
+  },
+  todayCardLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  todayCardSubject: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  progressBar: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 12,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  achievementBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  achievementText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dailyGoalCard: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 20,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dailyGoalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
   },
-  todayInfo: {
-    marginLeft: 20,
+  dailyGoalInfo: {
     flex: 1,
+    marginLeft: 12,
   },
-  todayLabel: {
-    fontSize: 13,
-    color: colors.textLight,
-    marginBottom: 6,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  dailyGoalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  todaySubject: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
+  dailyGoalSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
   },
-  todayDay: {
-    fontSize: 15,
-    color: colors.textLight,
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  statsCard: {
-    backgroundColor: colors.card,
-    marginHorizontal: 24,
-    marginBottom: 20,
-    padding: 28,
+  goalActionButton: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-  },
-  statsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 28,
-    textAlign: 'center',
-  },
-  progressCircle: {
     alignItems: 'center',
-    marginBottom: 32,
-    padding: 20,
+    justifyContent: 'center',
   },
-  progressContainer: {
+  goalProgressBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  goalProgressText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  progressGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  progressItem: {
+    flex: 1,
+    minWidth: '48%',
+    backgroundColor: colors.cardSecondary,
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
+  },
+  progressIcon: {
     marginBottom: 8,
   },
-  progressPercent: {
-    fontSize: 56,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: -2,
+  progressValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
   },
-  progressLabel: {
-    fontSize: 16,
+  progressTarget: {
+    fontSize: 12,
     color: colors.textLight,
-    marginTop: 8,
+  },
+  homeSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  modernStatsSection: {
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
+  modernStatsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modernStatCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  modernStatValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  modernStatLabel: {
+    fontSize: 11,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  compactTimerSection: {
+    marginTop: 16,
+    marginHorizontal: 20,
+  },
+  timerCard: {
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  timerDisplay: {
+    fontSize: 42,
+    fontWeight: 'bold',
+    marginVertical: 16,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  timerButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  timerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  timerButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
   },
-  statsGrid: {
+  sessionInputs: {
+    width: '100%',
+    marginTop: 16,
+    gap: 8,
+  },
+  inputRow: {
+    width: '100%',
+  },
+  sessionInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  // Progress Screen Styles
+  weeklyChart: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 120,
+    paddingHorizontal: 10,
+  },
+  chartDay: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  chartBar: {
+    width: 20,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  chartDayLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  chartDayValue: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  summaryLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // Reports Screen Styles
+  reportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  reportLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  reportValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 12,
+  },
+  recommendationText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  // Settings Screen Styles
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 16,
+  },
+  settingsInfo: {
+    flex: 1,
+  },
+  settingsLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  settingsDesc: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  infoLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  dangerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.danger,
+    padding: 16,
+    borderRadius: 12,
+    gap: 16,
+  },
+  dangerButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  dangerButtonDesc: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  chartCardPadding: {
+    padding: 20,
+  },
+  // Courses and Topics Styles
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginRight: 16,
+  },
+  courseCard: {
+    marginHorizontal: 20,
+    marginVertical: 8,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  courseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  courseIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  courseInfo: {
+    flex: 1,
+  },
+  courseName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  courseStats: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  courseTime: {
+    fontSize: 12,
+  },
+  courseProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressPercentage: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    minWidth: 40,
+  },
+  topicCard: {
+    marginHorizontal: 20,
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  topicHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  topicInfo: {
+    flex: 1,
+  },
+  topicName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  topicStats: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  topicTime: {
+    fontSize: 12,
+  },
+  topicCompleteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topicActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  completedText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Table styles for checkbox layout
+  tableHeader: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  tableHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F0F0F0',
+  },
+  topicNameColumn: {
+    flex: 3,
+    paddingRight: 8,
+  },
+  topicNameText: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  topicNameTextFlex: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+    flex: 1,
+  },
+  topicNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topicMenuButton: {
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 8,
+    backgroundColor: colors.backgroundLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+  },
+  addTopicButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    margin: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  addTopicButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addTopicButtonSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 32,
+    borderRadius: 6,
+    gap: 6,
+  },
+  addTopicButtonSmallText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  checkboxColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerAlign: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxTouchArea: {
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+  },
+  // Modal styles for daily goal creation
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 20,
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  scheduleModal: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 20,
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    padding: 0,
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#DC3545',
+    width: '100%',
+    marginTop: 12,
+  },
+  modalButtonTextWhite: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  modalBody: {
+    maxHeight: 400,
+    paddingHorizontal: 20,
+  },
+  modalSubject: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginVertical: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  topicsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  topicItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minWidth: '48%',
+    marginBottom: 8,
+  },
+  topicItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  timeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 16,
   },
-  statItem: {
+  timeInput: {
     alignItems: 'center',
-    padding: 16,
   },
-  statItemWithBg: {
-    backgroundColor: colors.cardSecondary,
-    borderRadius: 16,
-    marginHorizontal: 4,
-    flex: 1,
+  timeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
   },
-  statIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+  timeButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  timeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 12,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: colors.textLight,
-    marginTop: 6,
+  timeValue: {
+    fontSize: 18,
     fontWeight: '600',
-  },
-  motivationCard: {
-    backgroundColor: colors.accent,
-    marginHorizontal: 24,
-    marginBottom: 32,
-    padding: 24,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  motivationText: {
-    fontSize: 16,
-    color: colors.primary,
-    marginLeft: 16,
-    flex: 1,
-    fontWeight: '600',
-    lineHeight: 24,
-  },
-  subjectsGrid: {
-    padding: 24,
-    paddingTop: 0,
-  },
-  subjectCard: {
-    backgroundColor: colors.card,
-    padding: 24,
-    borderRadius: 20,
-    marginBottom: 20,
-    borderLeftWidth: 5,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-  },
-  subjectCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  miniProgressBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  miniProgressText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  subjectCardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  subjectCardTopics: {
-    fontSize: 15,
-    color: colors.textLight,
-    fontWeight: '500',
-  },
-  subjectHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 24,
-    paddingTop: Platform.OS === 'ios' ? 60 : 32,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  subjectHeaderTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-    flex: 1,
+    minWidth: 40,
     textAlign: 'center',
   },
-  progressBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  progressBadgeText: {
-    color: colors.card,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  topicList: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  tableHeader: {
+  questionContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.primary,
-    padding: 24,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 20,
+  },
+  questionValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    marginRight: 6,
+  },
+  saveButton: {
+    marginLeft: 6,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Study Log Styles
+  studyLogSection: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+  },
+  logButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2E5BFF',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  logButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  todayLogSummary: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
     elevation: 2,
-    shadowColor: colors.primary,
-    shadowOffset: {width: 0, height: 2},
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  tableRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 2,
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  tableCell: {
+  logSummaryTitle: {
     fontSize: 16,
-    fontWeight: '500',
-  },
-  topicCell: {
-    flex: 1,
-    color: colors.text,
     fontWeight: '600',
-    fontSize: 15,
-    lineHeight: 20,
-    paddingRight: 8,
-    flexWrap: 'wrap',
+    marginBottom: 12,
   },
-  iconCell: {
-    width: 48,
-    height: 48,
+  logSummaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  logStat: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    marginHorizontal: 3,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
   },
-  headerIconCell: {
-    width: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-  },
-  headerTopicCell: {
-    flex: 1,
-    color: colors.backgroundLight,
-    fontSize: 17,
-    fontWeight: '700',
-    paddingRight: 12,
-  },
-  headerIconLabel: {
-    color: colors.backgroundLight,
+  logStatText: {
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-    textAlign: 'center',
+    marginLeft: 4,
   },
-  checkboxActive: {
-    backgroundColor: colors.success + '15',
-    borderColor: colors.success,
-    borderWidth: 2,
-  },
-  checkboxActiveVideo: {
-    backgroundColor: colors.primary + '15',
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-  checkboxActiveQuestion: {
-    backgroundColor: colors.warning + '15',
-    borderColor: colors.warning,
-    borderWidth: 2,
-  },
-  checkboxActiveCompleted: {
-    backgroundColor: colors.secondary + '15',
-    borderColor: colors.secondary,
-    borderWidth: 2,
-  },
-  lastTableRow: {
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    borderBottomWidth: 0,
+  
+  // Study Log Modal Styles
+  logSection: {
     marginBottom: 24,
   },
-  scheduleCard: {
-    backgroundColor: colors.card,
-    marginHorizontal: 24,
-    marginBottom: 16,
-    padding: 24,
-    borderRadius: 20,
-    borderLeftWidth: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-  },
-  scheduleDay: {
-    width: 100,
-    paddingRight: 16,
-  },
-  scheduleDayText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  scheduleContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  scheduleSubject: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginLeft: 16,
-  },
-  tipCard: {
-    backgroundColor: '#FEF3C7',
-    marginHorizontal: 24,
-    marginTop: 8,
-    marginBottom: 32,
-    padding: 24,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  tipContent: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  tipTitle: {
+  logSectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#92400E',
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  logInputGroup: {
+    marginBottom: 16,
+  },
+  logLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     marginBottom: 8,
   },
-  tipText: {
-    fontSize: 15,
-    color: '#92400E',
-    lineHeight: 22,
+  counterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+  },
+  inputWithButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+  },
+  numberInput: {
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginHorizontal: 12,
+    minWidth: 80,
+    maxWidth: 120,
+  },
+  counterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginHorizontal: 20,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customTopicItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  customTopicText: {
+    flex: 1,
+    fontSize: 14,
+  },
+  
+  // Custom Picker Modal Styles
+  courseSection: {
+    marginBottom: 20,
+  },
+  courseSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  topicSelectItem: {
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  topicSelectText: {
+    fontSize: 14,
     fontWeight: '500',
   },
-  progressStatItem: {
+  courseSelectItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
     padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
   },
-  progressStatValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 12,
-  },
-  progressStatLabel: {
-    fontSize: 13,
-    color: colors.textLight,
-    marginTop: 8,
-    textAlign: 'center',
+  courseSelectText: {
+    flex: 1,
+    fontSize: 16,
     fontWeight: '600',
+    marginLeft: 12,
   },
-  subjectProgressItem: {
-    marginBottom: 24,
-    padding: 4,
+  courseSelectCount: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  subjectProgressHeader: {
+  
+  // Selected Topics Styles
+  selectedTopicsSection: {
+    marginBottom: 16,
+  },
+  selectedTopicsTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  selectedTopicsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectedTopicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+  },
+  selectedTopicText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  
+  // Goal Actions Styles
+  goalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  goalEditButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Agenda Screen Styles
+  agendaDayCard: {
+    marginHorizontal: 20,
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  agendaDayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  agendaDayIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  agendaDayInfo: {
+    flex: 1,
+  },
+  agendaDayName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  agendaSubject: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  agendaTemplateInfo: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  agendaDayActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  agendaActionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  agendaTemplateTopics: {
+    marginTop: 8,
+  },
+  agendaTemplateTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  agendaTopicsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  agendaTopicChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  agendaTopicText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  agendaHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  subjectProgressInfo: {
+  agendaHeaderButton: {
+    padding: 8,
+    borderRadius: 6,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  subjectProgressName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-    marginLeft: 12,
+  modalScrollView: {
+    maxHeight: 400,
+    padding: 20,
   },
-  subjectProgressPercent: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.primary,
+  inputGroup: {
+    marginBottom: 16,
   },
-  progressBarContainer: {
-    height: 10,
-    backgroundColor: colors.borderLight,
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  subjectProgressDetails: {
-    fontSize: 13,
-    color: colors.textLight,
-    fontWeight: '500',
-  },
-  tabBar: {
-    backgroundColor: colors.card,
-    borderTopWidth: 0,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: -2},
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    height: Platform.OS === 'ios' ? 88 : 70,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    paddingTop: 12,
-  },
-  tabBarLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  // Agenda customization styles
-  customizeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginLeft: 'auto',
-  },
-  customizeButtonText: {
-    color: colors.primary,
+  inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    marginLeft: 6,
+    marginBottom: 8,
   },
-  customizationControls: {
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  courseSelector: {
+    paddingVertical: 8,
+  },
+  courseOption: {
+    marginRight: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  courseOptionText: {
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 12,
+    marginTop: 20,
   },
-  controlButton: {
+  boldText: {
+    fontWeight: 'bold',
+  },
+  normalText: {
+    fontWeight: 'normal',
+  },
+  opacityFull: {
+    opacity: 1,
+  },
+  opacityReduced: {
+    opacity: 0.85,
+  },
+  dropdownContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 8,
+    marginTop: 4,
+  },
+  dayDropdown: {
+    paddingVertical: 4,
+  },
+  dayOption: {
+    marginRight: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    minWidth: 75,
+  },
+  dayOptionText: {
+    fontSize: 11,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  dayOptionSelected: {
+    backgroundColor: colors.primary,
+  },
+  dayOptionUnselected: {
+    backgroundColor: 'transparent',
+  },
+  dayTextSelected: {
+    color: 'white',
+  },
+  dayTextUnselected: {
+    color: colors.text,
+  },
+  // Topic Management Modal Styles
+  topicManagementModal: {
+    width: '92%',
+    maxHeight: '85%',
+    borderRadius: 20,
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    padding: 0,
+  },
+  topicModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  topicModalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  topicModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginLeft: 12,
+    flex: 1,
+  },
+  topicModalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topicModalCourseInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 24,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  topicModalCourseName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  topicModalBody: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    paddingBottom: 32,
+  },
+  topicModalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  topicModalTextInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    marginBottom: 24,
+    minHeight: 50,
+  },
+  topicModalButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  topicModalButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 12,
     gap: 8,
   },
-  saveButton: {
-    backgroundColor: colors.success,
+  topicModalCancelButton: {
+    borderWidth: 1.5,
   },
-  cancelButton: {
-    backgroundColor: colors.danger,
+  topicModalSaveButton: {
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  controlButtonText: {
-    color: colors.backgroundLight,
+  topicModalDeleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 8,
+  },
+  topicModalButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
-  editableScheduleCard: {
-    backgroundColor: colors.card,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 20,
-    borderRadius: 20,
-    borderLeftWidth: 5,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-  },
-  editableScheduleContent: {
+
+  // New Agenda Styles
+  instructionsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    paddingVertical: 4,
-  },
-  subjectOptions: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  subjectOption: {
-    backgroundColor: colors.background,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: '#E3F2FD',
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#BBDEFB',
   },
-  subjectOptionText: {
-    color: colors.text,
+  instructionsText: {
+    flex: 1,
+    marginLeft: 12,
     fontSize: 14,
-    fontWeight: '500',
+    lineHeight: 20,
   },
-  moveControls: {
-    flexDirection: 'column',
-    gap: 8,
-    marginLeft: 16,
-  },
-  moveButton: {
-    backgroundColor: colors.primary + '15',
-    padding: 8,
-    borderRadius: 8,
+  headerActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 8,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Topic customization styles
-  subjectHeaderActions: {
+  newAgendaDayContainer: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  todayHighlight: {
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  newAgendaDayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  agendaDayTitleSection: {
+    flex: 1,
+  },
+  agendaDayTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
-  editTopicsButton: {
-    backgroundColor: colors.backgroundLight,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    elevation: 1,
+  todayText: {
+    color: '#4CAF50',
+  },
+  todayBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  todayBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  agendaCourseCount: {
+    fontSize: 14,
+  },
+  newAgendaDayActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  agendaDayButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  agendaCoursesContainer: {
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  agendaCourseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    marginVertical: 4,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  topicCellContainer: {
+  agendaCourseContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingRight: 8,
+    padding: 12,
   },
-  completedTopicText: {
-    textDecorationLine: 'line-through',
-    opacity: 0.6,
-    color: colors.textMuted,
-  },
-  deleteTopicButton: {
-    backgroundColor: colors.danger + '15',
-    padding: 6,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  addTopicRow: {
-    backgroundColor: colors.accent,
-    borderWidth: 2,
-    borderColor: colors.primary + '20',
-    borderStyle: 'dashed',
-  },
-  addTopicInput: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text,
-    backgroundColor: colors.backgroundLight,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+  agendaCourseIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  addTopicButton: {
-    backgroundColor: colors.success + '15',
+  agendaCourseInfo: {
+    flex: 1,
+  },
+  agendaCourseText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  agendaCourseGoal: {
+    fontSize: 12,
+  },
+  agendaCourseActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginRight: 8,
+  },
+  agendaCourseButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dragHandle: {
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  newCourseSelectItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+  },
+  courseSelectIcon: {
     width: 48,
     height: 48,
-    alignItems: 'center',
+    borderRadius: 24,
     justifyContent: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.success + '30',
-  },
-  // Compact home screen styles
-  compactHeader: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 16,
-    backgroundColor: colors.background,
-  },
-  compactHeaderTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  compactHeaderSubtitle: {
-    fontSize: 14,
-    color: colors.textLight,
-    fontWeight: '500',
-  },
-  homeContent: {
-    paddingBottom: 20,
-  },
-  topSection: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  compactTodayCard: {
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    marginRight: 16,
   },
-  compactTodayInfo: {
-    marginLeft: 12,
+  courseSelectInfo: {
     flex: 1,
   },
-  compactTodayLabel: {
-    fontSize: 11,
-    color: colors.textLight,
-    marginBottom: 2,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  compactTodaySubject: {
+  courseSelectName: {
     fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  compactProgressBadge: {
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  compactProgressText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  compactStatsSection: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  statsRow: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  compactStatItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  compactStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 6,
-  },
-  compactStatLabel: {
-    fontSize: 11,
-    color: colors.textLight,
-    marginTop: 2,
     fontWeight: '600',
-  },
-  compactMotivationCard: {
-    backgroundColor: colors.accent,
-    marginHorizontal: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  compactMotivationText: {
-    fontSize: 14,
-    color: '#92400E',
-    fontWeight: '600',
-    marginLeft: 8,
-    flex: 1,
-  },
-  // Reports screen styles
-  reportsHeader: {
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 16,
-  },
-  reportsHeaderTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
     marginBottom: 4,
-    letterSpacing: -0.5,
   },
-  reportsHeaderSubtitle: {
+  courseSelectTopics: {
     fontSize: 14,
-    color: colors.textLight,
-    fontWeight: '500',
   },
-  reportTypesGrid: {
-    paddingHorizontal: 16,
-    gap: 12,
+  agendaCourseItemActive: {
+    elevation: 8,
+    shadowOpacity: 0.3,
   },
-  reportTypeCard: {
-    backgroundColor: colors.card,
-    padding: 20,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
+  agendaCourseItemInactive: {
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    marginBottom: 12,
+    shadowOpacity: 0.1,
   },
-  reportTypeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginLeft: 16,
-    flex: 1,
-  },
-  reportTypeDesc: {
+  customActivityBadge: {
     fontSize: 12,
-    color: colors.textLight,
-    marginLeft: 16,
-    marginTop: 2,
-    flex: 1,
+    fontStyle: 'italic',
+    fontWeight: '500',
   },
-  todayPreview: {
-    backgroundColor: colors.card,
-    marginHorizontal: 16,
-    marginTop: 16,
+  sectionDivider: {
+    height: 1,
+    marginVertical: 16,
+    marginHorizontal: 20,
+  },
+  iconSelectionContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
+  },
+  iconSelectButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorSelectionContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
+  },
+  colorSelectButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activityPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
-    borderRadius: 16,
-    elevation: 2,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    marginBottom: 20,
+  },
+  calendarContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 20,
+    padding: 20,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
   },
-  todayPreviewTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
+  calendarHeader: {
+    marginBottom: 16,
+    alignItems: 'center',
   },
-  todayStats: {
-    flexDirection: 'row',
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  calendarGrid: {
+    flexDirection: 'column',
     gap: 16,
   },
-  todayStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  todayStatText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 8,
-  },
-  reportHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    backgroundColor: colors.background,
-  },
-  reportHeaderTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    flex: 1,
-    textAlign: 'center',
-  },
-  addLogButton: {
-    backgroundColor: colors.primary + '15',
+  calendarDayCard: {
+    width: '18%',
+    aspectRatio: 1,
+    borderRadius: 12,
     padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
-  },
-  reportContent: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  dateSelector: {
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
     alignItems: 'center',
-  },
-  selectedDate: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dailyReportCard: {
-    backgroundColor: colors.card,
-    padding: 20,
-    borderRadius: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  studyTimeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: colors.primary + '10',
-    borderRadius: 12,
-  },
-  studyTimeText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.primary,
-    marginLeft: 12,
-  },
-  moodSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  moodIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: 12,
-    borderRadius: 12,
-  },
-  moodText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 12,
-  },
-  topicsSection: {
-    marginBottom: 20,
-  },
-  topicItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  topicName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  topicTime: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  notesSection: {
-    marginBottom: 20,
-  },
-  notesText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    backgroundColor: colors.background,
-    padding: 12,
-    borderRadius: 8,
-  },
-  noDataCard: {
-    backgroundColor: colors.card,
-    padding: 40,
-    borderRadius: 16,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  noDataText: {
-    fontSize: 16,
-    color: colors.textMuted,
-    marginTop: 16,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  addLogButtonLarge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  addLogButtonText: {
-    color: colors.backgroundLight,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Daily log form styles
-  dailyLogForm: {
-    backgroundColor: colors.card,
-    padding: 20,
-    borderRadius: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  formSection: {
-    marginBottom: 20,
-  },
-  formLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  moodSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  moodOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  moodOptionSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  moodOptionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 6,
-  },
-  moodOptionTextSelected: {
-    color: colors.backgroundLight,
-  },
-  notesInput: {
-    backgroundColor: colors.background,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    fontSize: 14,
-    color: colors.text,
+    justifyContent: 'center',
+    position: 'relative',
     minHeight: 80,
   },
-  dateNavButton: {
-    backgroundColor: colors.background,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  topicInfo: {
-    flex: 1,
-  },
-  topicType: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  noTopicsText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    padding: 20,
-  },
-  progressSummary: {
-    marginBottom: 20,
-  },
-  progressStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  progressStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    flex: 1,
-    minWidth: '45%',
-  },
-  progressStatText: {
+  calendarDayName: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.text,
-    marginLeft: 6,
+    marginBottom: 4,
   },
-  // Timer Widget Styles
-  timerWidget: {
-    backgroundColor: colors.card,
+  todayIndicator: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  calendarCourses: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 2,
+  },
+  calendarCourseItem: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarMoreText: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  calendarWeekRow: {
+    marginBottom: 20,
+  },
+  calendarRowTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  calendarDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 8,
+  },
+  calendarWeekendCard: {
+    borderWidth: 2,
+    borderColor: '#F3E8FF',
+  },
+  calendarCourseText: {
+    textAlign: 'center',
+    marginVertical: 1,
+  },
+  goalDetailsContainer: {
+    padding: 8,
+  },
+  goalSummaryCard: {
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  goalSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  goalSummaryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 12,
+  },
+  goalSummarySubtext: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  goalStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  goalStatItem: {
+    alignItems: 'center',
+  },
+  goalStatNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  goalStatLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+  },
+  noGoalsCard: {
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noGoalsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noGoalsSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  
+  // Day Details Modal Styles
+  dayOverviewCard: {
+    backgroundColor: colors.backgroundLight,
     borderRadius: 16,
     padding: 20,
-    marginTop: 16,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dayOverviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dayOverviewInfo: {
+    flex: 1,
+  },
+  dayOverviewTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dayOverviewSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  addCourseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  addCourseButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  dayDetailsCourseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: 4,
   },
-  timerHeader: {
-    flexDirection: 'row',
+  dayDetailsCourseIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  timerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 8,
+  dayDetailsCourseInfo: {
     flex: 1,
   },
-  timerSettingsButton: {
-    padding: 4,
+  dayDetailsCourseName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  timerDisplay: {
+  customBadge: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  courseGoalText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  emptyCoursesCard: {
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 16,
+    padding: 32,
     alignItems: 'center',
     marginBottom: 20,
   },
-  timerTime: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: colors.primary,
-    fontFamily: 'monospace',
-  },
-  timerSubtext: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 4,
+  emptyCoursesTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  timerControls: {
+  emptyCoursesSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  goalsOverviewCard: {
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  goalsOverviewHeader: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  goalsOverviewTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 12,
+  },
+  goalsOverviewSubtext: {
+    fontSize: 14,
+    lineHeight: 20,
     marginBottom: 16,
   },
-  timerButton: {
+  goalStatsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 6,
+    justifyContent: 'space-around',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  startButton: {
-    backgroundColor: colors.success,
+  alreadyAddedBadge: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
-  pauseButton: {
-    backgroundColor: colors.warning,
-  },
-  resumeButton: {
-    backgroundColor: colors.primary,
-  },
-  endButton: {
-    backgroundColor: colors.danger,
-  },
-  timerButtonText: {
-    color: colors.backgroundLight,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sessionInputs: {
-    gap: 8,
-  },
-  inputRow: {
-    flexDirection: 'row',
-  },
-  sessionInput: {
+  // Chart styles
+  chartsModalContainer: {
     flex: 1,
     backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+  chartsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
-  modalContent: {
+  chartsModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  chartsModalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  chartSection: {
+    marginBottom: 25,
+    padding: 25,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 4.65,
+    elevation: 6,
+  },
+  chartTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 15,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  chartSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    opacity: 0.7,
+    fontWeight: '500',
+  },
+  chartContainer: {
+    height: 200,
+    justifyContent: 'flex-end',
+    paddingVertical: 10,
+  },
+  // Line chart styles
+  lineChartContainer: {
+    height: 220,
+    position: 'relative',
+    marginVertical: 15,
     backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
-    width: '100%',
-    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  modalHeader: {
+  lineChartGrid: {
+    position: 'absolute',
+    top: 24,
+    left: 32,
+    right: 32,
+    bottom: 60,
+  },
+  gridLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.border,
+    opacity: 0.2,
+  },
+  lineChartPath: {
+    position: 'absolute',
+    top: 24,
+    left: 32,
+    right: 32,
+    bottom: 60,
+  },
+  lineChartPoint: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: -4,
+    marginTop: -4,
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  lineSegment: {
+    position: 'absolute',
+    height: 2,
+    zIndex: 1,
+    borderRadius: 1,
+  },
+  lineChartLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    opacity: 0.6,
+  },
+  lineChartLabels: {
+    position: 'absolute',
+    bottom: 10,
+    left: 20,
+    right: 20,
+    height: 40,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  lineChartLabelContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  chartBars: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 140,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  chartBarContainer: {
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 3,
+    maxWidth: 40,
+  },
+  chartBarWrapper: {
+    height: 120,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 4,
+  },
+  chartBarGraph: {
+    width: '100%',
+    borderRadius: 6,
+    minHeight: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+  chartLabel: {
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  chartValue: {
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
+    fontWeight: '700',
+    opacity: 0.9,
+  },
+  // Summary stats styles
+  summaryStatsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+  },
+  summaryStatItem: {
+    alignItems: 'center',
+  },
+  summaryStatValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  summaryStatLabel: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  
+  // Settings Screen Styles
+  headerIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  settingsSection: {
     marginBottom: 24,
   },
-  modalTitle: {
+  settingsSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    marginBottom: 12,
+    marginLeft: 4,
   },
-  modalCloseButton: {
-    padding: 4,
+  settingsCard: {
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
   },
-  settingItem: {
+  settingsItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    flex: 1,
-  },
-  settingInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  settingValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-    minWidth: 30,
-    textAlign: 'center',
-  },
-  adjustButton: {
-    backgroundColor: colors.background,
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  toggleButton: {
-    padding: 4,
-  },
-  modalSaveButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
+    paddingVertical: 18,
   },
-  modalSaveButtonText: {
-    color: colors.backgroundLight,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Goal Summary Styles
-  goalSummary: {
-    marginTop: 4,
-    alignItems: 'center',
-  },
-  goalSummaryText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  // Schedule Actions
-  scheduleActions: {
+  settingsItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  goalHintText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  // Goal Input Styles
-  goalInputSection: {
-    gap: 16,
-    marginBottom: 20,
-  },
-  goalInputItem: {
-    marginBottom: 12,
-  },
-  goalInputHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  goalInputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
     flex: 1,
   },
-  goalInputRow: {
-    flexDirection: 'row',
+  settingsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    marginRight: 16,
   },
-  goalInputValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primary,
-    minWidth: 40,
-    textAlign: 'center',
-  },
-  goalModalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  goalActionButton: {
+  settingsItemInfo: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+  },
+  settingsItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  settingsItemDesc: {
+    fontSize: 14,
+    opacity: 0.7,
+    lineHeight: 18,
+  },
+  settingsItemRight: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 12,
   },
-  cancelGoalButton: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  saveGoalButton: {
-    backgroundColor: colors.primary,
-  },
-  cancelGoalButtonText: {
-    color: colors.textMuted,
-    fontSize: 16,
+  settingsValue: {
+    fontSize: 15,
     fontWeight: '600',
+    marginRight: 8,
   },
-  saveGoalButtonText: {
-    color: colors.backgroundLight,
-    fontSize: 16,
-    fontWeight: '600',
+  settingsDivider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginLeft: 80,
+    opacity: 0.5,
+  },
+  switchContainer: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    position: 'absolute',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
 });
-
-export default App;

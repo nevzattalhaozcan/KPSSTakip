@@ -19,7 +19,15 @@ import {
   sendTestNotification,
 } from '../utils/notifications';
 
-const colors = {
+// Import theme context from parent App
+interface ThemeContextType {
+  isDarkMode: boolean;
+  toggleTheme: () => void;
+  colors: any;
+}
+
+// Default colors fallback
+const defaultColors = {
   primary: '#6366F1',
   secondary: '#8B5CF6',
   success: '#10B981',
@@ -38,7 +46,11 @@ const colors = {
   accent: '#F0F9FF',
 };
 
-const SettingsScreen = () => {
+// Create a context hook (will be passed as prop)
+const SettingsScreen = ({ themeContext }: { themeContext?: ThemeContextType }) => {
+  const colors = themeContext?.colors || defaultColors;
+  const isDarkMode = themeContext?.isDarkMode || false;
+  const toggleTheme = themeContext?.toggleTheme || (() => {});
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [morningReminder, setMorningReminder] = useState(true);
   const [eveningReminder, setEveningReminder] = useState(true);
