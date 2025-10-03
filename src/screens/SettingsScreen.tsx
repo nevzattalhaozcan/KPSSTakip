@@ -8,6 +8,9 @@ import {
   Switch,
   Alert,
   Platform,
+  Modal,
+  TextInput,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,6 +57,10 @@ const SettingsScreen = ({ themeContext }: { themeContext?: ThemeContextType }) =
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [morningReminder, setMorningReminder] = useState(true);
   const [eveningReminder, setEveningReminder] = useState(true);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('suggestion'); // suggestion, bug, compliment
+  const [feedbackText, setFeedbackText] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -186,6 +193,77 @@ const SettingsScreen = ({ themeContext }: { themeContext?: ThemeContextType }) =
     }
   };
 
+  const openFeedbackModal = () => {
+    setShowFeedbackModal(true);
+  };
+
+  const closeFeedbackModal = () => {
+    setShowFeedbackModal(false);
+    setFeedbackText('');
+    setUserEmail('');
+    setFeedbackType('suggestion');
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackText.trim()) {
+      Alert.alert('Hata', 'Lütfen geri bildiriminizi yazın.');
+      return;
+    }
+
+    try {
+      // Create email content
+      const subject = `KPSS Takip - ${feedbackType === 'suggestion' ? 'Öneri' : feedbackType === 'bug' ? 'Hata Bildirimi' : 'İletişim'}`;
+      const body = `Geri Bildirim Türü: ${feedbackType === 'suggestion' ? 'Öneri' : feedbackType === 'bug' ? 'Hata Bildirimi' : 'Genel'}\n\nGeri Bildirim:\n${feedbackText}\n\n${userEmail ? `İletişim: ${userEmail}` : ''}`;
+      
+      const emailUrl = `mailto:support@example.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      const canOpen = await Linking.canOpenURL(emailUrl);
+      if (canOpen) {
+        await Linking.openURL(emailUrl);
+        closeFeedbackModal();
+        Alert.alert('Teşekkürler!', 'Geri bildiriminiz için teşekkür ederiz. E-posta uygulamanız açıldı.');
+      } else {
+        // Fallback - copy to clipboard or show alternative
+        Alert.alert(
+          'E-posta Uygulaması Bulunamadı',
+          'Geri bildiriminizi support@example.com adresine gönderebilirsiniz.',
+          [
+            { text: 'Tamam', onPress: closeFeedbackModal }
+          ]
+        );
+      }
+    } catch (error) {
+      console.log('Feedback submission error:', error);
+      Alert.alert('Hata', 'Geri bildirim gönderilirken bir hata oluştu.');
+    }
+  };
+
+  const getFeedbackTypeIcon = (type: string) => {
+    switch (type) {
+      case 'suggestion':
+        return 'lightbulb-on';
+      case 'bug':
+        return 'bug';
+      case 'compliment':
+        return 'heart';
+      default:
+        return 'comment';
+    }
+  };
+
+  const getFeedbackTypeColor = (type: string) => {
+    switch (type) {
+      case 'suggestion':
+        return colors.warning;
+      case 'bug':
+        return colors.danger;
+      case 'compliment':
+        return colors.success;
+      default:
+        return colors.primary;
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -300,6 +378,31 @@ const SettingsScreen = ({ themeContext }: { themeContext?: ThemeContextType }) =
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Geri Bildirim</Text>
+        
+        <View style={styles.settingCard}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={openFeedbackModal}>
+            <View style={styles.settingInfo}>
+              <View style={[styles.iconContainer, {backgroundColor: `${colors.success}15`}]}>
+                <Icon name="message-text" size={24} color={colors.success} />
+              </View>
+              <View style={styles.settingText}>
+                <Text style={styles.settingTitle}>
+                  Görüş ve Önerileriniz
+                </Text>
+                <Text style={styles.settingDescription}>
+                  Uygulamamızı geliştirmemize yardımcı olun
+                </Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={24} color={colors.textLight} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Hakkında</Text>
         
         <View style={styles.settingCard}>
@@ -323,6 +426,118 @@ const SettingsScreen = ({ themeContext }: { themeContext?: ThemeContextType }) =
           </Text>
         </View>
       </View>
+
+      {/* Feedback Modal */}
+      <Modal
+        visible={showFeedbackModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={closeFeedbackModal}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                💬 Geri Bildirim
+              </Text>
+              <TouchableOpacity onPress={closeFeedbackModal}>
+                <Icon name="close" size={24} color={colors.textLight} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Feedback Type Selection */}
+              <Text style={[styles.inputLabel, { color: colors.textLight }]}>
+                Geri bildirim türü seçin:
+              </Text>
+              <View style={styles.feedbackTypeContainer}>
+                {[
+                  { key: 'suggestion', label: 'Öneri', icon: 'lightbulb-on' },
+                  { key: 'bug', label: 'Hata', icon: 'bug' },
+                  { key: 'compliment', label: 'Genel', icon: 'heart' }
+                ].map((type) => (
+                  <TouchableOpacity
+                    key={type.key}
+                    style={[
+                      styles.feedbackTypeButton,
+                      { 
+                        backgroundColor: feedbackType === type.key ? `${getFeedbackTypeColor(type.key)}15` : colors.backgroundLight,
+                        borderColor: feedbackType === type.key ? getFeedbackTypeColor(type.key) : colors.border 
+                      }
+                    ]}
+                    onPress={() => setFeedbackType(type.key)}>
+                    <Icon 
+                      name={type.icon} 
+                      size={20} 
+                      color={feedbackType === type.key ? getFeedbackTypeColor(type.key) : colors.textLight} 
+                    />
+                    <Text style={[
+                      styles.feedbackTypeText,
+                      { 
+                        color: feedbackType === type.key ? getFeedbackTypeColor(type.key) : colors.textLight,
+                        fontWeight: feedbackType === type.key ? '600' : '500'
+                      }
+                    ]}>
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Feedback Text */}
+              <Text style={[styles.inputLabel, { color: colors.textLight }]}>
+                Geri bildiriminiz:
+              </Text>
+              <TextInput
+                style={[styles.feedbackInput, { 
+                  backgroundColor: colors.backgroundLight, 
+                  color: colors.text,
+                  borderColor: colors.border
+                }]}
+                multiline
+                numberOfLines={6}
+                placeholder="Düşüncelerinizi, önerilerinizi veya karşılaştığınız sorunları detaylı bir şekilde açıklayın..."
+                placeholderTextColor={colors.textMuted}
+                value={feedbackText}
+                onChangeText={setFeedbackText}
+                textAlignVertical="top"
+              />
+
+              {/* Email (Optional) */}
+              <Text style={[styles.inputLabel, { color: colors.textLight }]}>
+                E-posta adresiniz (isteğe bağlı):
+              </Text>
+              <TextInput
+                style={[styles.emailInput, { 
+                  backgroundColor: colors.backgroundLight, 
+                  color: colors.text,
+                  borderColor: colors.border
+                }]}
+                placeholder="ornek@email.com"
+                placeholderTextColor={colors.textMuted}
+                value={userEmail}
+                onChangeText={setUserEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.backgroundLight }]}
+                onPress={closeFeedbackModal}>
+                <Text style={[styles.modalButtonText, { color: colors.textLight }]}>İptal</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.submitButton, { backgroundColor: colors.success }]}
+                onPress={submitFeedback}>
+                <Icon name="send" size={18} color="white" />
+                <Text style={[styles.modalButtonText, { color: 'white', marginLeft: 8 }]}>Gönder</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -452,6 +667,111 @@ const styles = StyleSheet.create({
     flex: 1,
     fontWeight: '600',
     lineHeight: 24,
+  },
+  // Feedback Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '90%',
+    borderRadius: 24,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 10},
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    paddingBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  modalBody: {
+    paddingHorizontal: 24,
+    maxHeight: 400,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  feedbackTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  feedbackTypeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackTypeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  emailInput: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    height: 50,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 24,
+    paddingTop: 16,
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: defaultColors.border,
+  },
+  submitButton: {
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
