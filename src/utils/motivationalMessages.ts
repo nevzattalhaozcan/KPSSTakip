@@ -13,61 +13,61 @@ export const motivationalMessages: MotivationalMessage[] = [
   // Motivation
   {
     id: '1',
-    message: 'Her yeni gün, hedefinize bir adım daha yaklaşma fırsatıdır. KPSS\'de başarı için bugün de elinizden geleni yapın!',
+    message: 'Her yeni gün, hedefine bir adım daha yaklaşma fırsatıdır. KPSS\'de başarı için bugün de elinden geleni yap!',
     category: 'motivation'
   },
   {
     id: '2',
-    message: 'Başarı, günlük küçük adımların birleşimidir. Bugün atacağınız her adım sizi KPSS başarısına götürür!',
+    message: 'Başarı, günlük küçük adımların birleşimidir. Bugün atacağın her adım seni KPSS başarısına götürür!',
     category: 'motivation'
   },
   {
     id: '3',
-    message: 'Kendinize olan inancınızı asla kaybetmeyin. KPSS\'yi geçecek güçtesiniz!',
+    message: 'Kendine olan inancını asla kaybetme. KPSS\'yi geçecek güçtesin!',
     category: 'motivation'
   },
   {
     id: '4',
-    message: 'Zorluklarla karşılaştığınızda hatırlayın: En güzel çiçekler en zor koşullarda büyür. KPSS yolculuğunuz da böyle!',
+    message: 'Zorluklarla karşılaştığında hatırlayın: En güzel çiçekler en zor koşullarda büyür. KPSS yolculuğun da böyle!',
     category: 'motivation'
   },
   {
     id: '5',
-    message: 'Çalışma disiplininiz, gelecekteki hayatınızın temelini atıyor. Her ders, her soru size değer katıyor!',
+    message: 'Çalışma disiplinin, gelecekteki hayatının temelini atıyor. Her ders, her soru sana değer katıyor!',
     category: 'motivation'
   },
 
   // Success
   {
     id: '6',
-    message: 'Başarı, hazırlık ile fırsatın buluştuğu andır. KPSS için hazırlığınızı sürdürün!',
+    message: 'Başarı, hazırlık ile fırsatın buluştuğu andır. KPSS için hazırlığını sürdür!',
     category: 'success'
   },
   {
     id: '7',
-    message: 'Hayallerinizin peşinden gitmek için asla geç değildir. KPSS başarınız sizi bekliyor!',
+    message: 'Hayallerinin peşinden gitmek için asla geç değildir. KPSS başarın seni bekliyor!',
     category: 'success'
   },
   {
     id: '8',
-    message: 'Başarı bir gecede gelmez, ama her gece biraz daha yaklaşırsınız. Sabırlı olun!',
+    message: 'Başarı bir gecede gelmez, ama her gece biraz daha yaklaşırsın. Sabırlı ol!',
     category: 'success'
   },
 
   // Persistence
   {
     id: '9',
-    message: 'Pes etmek, başarıya en yakın olduğunuz anda olur. Devam edin, hedefiniz çok yakın!',
+    message: 'Pes etmek, başarıya en yakın olduğun anda olur. Devam et, hedefin çok yakın!',
     category: 'persistence'
   },
   {
     id: '10',
-    message: 'Zorluklar sizi güçlendirir, başarısızlıklar size tecrübe kazandırır. KPSS yolunda her deneyim değerlidir!',
+    message: 'Zorluklar seni güçlendirir, başarısızlıklar sana tecrübe kazandırır. KPSS yolunda her deneyim değerlidir!',
     category: 'persistence'
   },
   {
     id: '11',
-    message: 'Bugün yorgunsanız bile, yarın için umudunuzu kaybetmeyin. Dinlenin ve güçlü dönün!',
+    message: 'Bugün yorgunsan bile, yarın için umudunu kaybetme. Dinlen ve güçlü dön!',
     category: 'persistence'
   },
 
@@ -79,73 +79,73 @@ export const motivationalMessages: MotivationalMessage[] = [
   },
   {
     id: '13',
-    message: 'Kaliteli çalışma, uzun saatlerden daha değerlidir. Verimli olmaya odaklanın!',
+    message: 'Kaliteli çalışma, uzun saatlerden daha değerlidir. Verimli olmaya odaklan!',
     category: 'wisdom'
   },
   {
     id: '14',
-    message: 'Hatalarınızdan öğrenmek, doğru yaptıklarınızdan daha değerli olabilir. Her yanıt bir öğrenme fırsatı!',
+    message: 'Hatalarından öğrenmek, doğru yaptıklarından daha değerli olabilir. Her yanıt bir öğrenme fırsatı!',
     category: 'wisdom'
   },
 
   // Encouragement
   {
     id: '15',
-    message: 'Siz bu yolda yalnız değilsiniz. Binlerce kişi aynı hedefe yürüyor, siz de onların arasında parlayabilirsiniz!',
+    message: 'Sen bu yolda yalnız değilsin. Binlerce kişi aynı hedefe yürüyor, sen de onların arasında parlayabilirsin!',
     category: 'encouragement'
   },
   {
     id: '16',
-    message: 'Her çalışma seansı sizi hedefinize yaklaştırıyor. Kendinizle gurur duyun!',
+    message: 'Her çalışma seansı seni hedefine yaklaştırıyor. Kendinle gurur duy!',
     category: 'encouragement'
   },
   {
     id: '17',
-    message: 'KPSS\'de başarı sadece puanla ölçülmez, kişisel gelişiminizle de ölçülür. Her iki alanda da ilerliyorsunuz!',
+    message: 'KPSS\'de başarı sadece puanla ölçülmez, kişisel gelişiminle de ölçülür. Her iki alanda da ilerliyorsun!',
     category: 'encouragement'
   },
   {
     id: '18',
-    message: 'Bugün kendisini geliştiren, yarın fırsatları değerlendirir. KPSS\'deki başarınız da böyle gelecek!',
+    message: 'Bugün kendini geliştiren, yarın fırsatları değerlendirir. KPSS\'deki başarın da böyle gelecek!',
     category: 'encouragement'
   },
 
   // Time-specific messages
   {
     id: '19',
-    message: 'Sabah erken çalışmak zihni tazeler ve verimi artırır. Günaydın, başarılı bir gün sizi bekliyor!',
+    message: 'Sabah erken çalışmak zihni tazeler ve verimi artırır. Günaydın, başarılı bir gün seni bekliyor!',
     category: 'motivation'
   },
   {
     id: '20',
-    message: 'Akşam çalışması günü değerlendirme ve pekiştirme zamanıdır. Bugün öğrendiklerinizi unutmayın!',
+    message: 'Akşam çalışması günü değerlendirme ve pekiştirme zamanıdır. Bugün öğrendiklerini unutma!',
     category: 'wisdom'
   },
   {
     id: '21',
-    message: 'Hafta sonu bile çalışıyor olmanız, hedefinize olan bağlılığınızı gösterir. Tebrikler!',
+    message: 'Hafta sonu bile çalışıyor olman, hedefine olan bağlılığını gösterir. Tebrikler!',
     category: 'encouragement'
   },
 
   // Goal-oriented messages
   {
     id: '22',
-    message: 'Büyük hedefler küçük adımlarla gerçekleşir. KPSS hedefiniz için bugün ne yapacaksınız?',
+    message: 'Büyük hedefler küçük adımlarla gerçekleşir. KPSS hedefin için bugün ne yapacaksın?',
     category: 'motivation'
   },
   {
     id: '23',
-    message: 'Hayalinizdeki işe kavuşmak için attığınız her adım değerlidir. Yolunuza devam edin!',
+    message: 'Hayalindeki işe kavuşmak için attığın her adım değerlidir. Yoluna devam et!',
     category: 'success'
   },
   {
     id: '24',
-    message: 'KPSS sadece bir sınav değil, geleceğinizin kapısıdır. O kapıyı açacak anahtar elinizde!',
+    message: 'KPSS sadece bir sınav değil, geleceğinin kapısıdır. O kapıyı açacak anahtar senin elinde!',
     category: 'motivation'
   },
   {
     id: '25',
-    message: 'Kendinize yatırım yapmaya devam edin. KPSS başarısı en iyi yatırımınızın meyvesi olacak!',
+    message: 'Kendine yatırım yapmaya devam et. KPSS başarısı en iyi yatırımının meyvesi olacak!',
     category: 'wisdom'
   }
 ];

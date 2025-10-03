@@ -24,6 +24,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FeedbackService, FeedbackData } from './src/services/simpleFeedbackService';
 import { showMotivationalMessage, getEncouragementMessage } from './src/utils/motivationalMessages';
 import { MotivationSettingsModal } from './src/utils/motivationSettingsModal';
+import { motivationalPushService } from './src/utils/pushNotificationService';
+import { PushNotificationSettingsModal } from './src/utils/pushNotificationSettingsModal';
+import { dailyReminderService } from './src/utils/dailyReminderService';
+import { DailyReminderSettingsModal } from './src/utils/dailyReminderSettingsModal';
 
 // Color definitions
 const colors = {
@@ -176,6 +180,9 @@ function HomeScreen() {
     percentage: 0,
   });
   const [courses, setCourses] = useState<Course[]>(defaultCourses);
+
+  // Add state for showing welcome message only once
+  const [hasShownWelcomeMessage, setHasShownWelcomeMessage] = useState(false);
 
   // Load custom weekly schedule
   const loadWeeklySchedule = React.useCallback(async () => {
@@ -874,10 +881,34 @@ function HomeScreen() {
       await loadProgress();
       await loadTodayGoals();
       await loadTodayStudyLog();
+      
+      // Initialize push notification service
+      try {
+        await motivationalPushService.initialize();
+        console.log('Push notification service initialized');
+      } catch (error) {
+        console.error('Error initializing push notifications:', error);
+      }
+
+      // Initialize daily reminder service
+      try {
+        await dailyReminderService.initialize();
+        console.log('Daily reminder service initialized');
+      } catch (error) {
+        console.error('Error initializing daily reminders:', error);
+      }
+      
+      // Show welcome message only once after a delay
+      if (!hasShownWelcomeMessage) {
+        setTimeout(() => {
+          showMotivationalMessage();
+          setHasShownWelcomeMessage(true);
+        }, 2000);
+      }
     };
 
     loadInitialData();
-  }, [loadProgress, loadTodayGoals, loadTodayStudyLog, loadWeeklySchedule]);
+  }, [loadProgress, loadTodayGoals, loadTodayStudyLog, loadWeeklySchedule, hasShownWelcomeMessage]);
 
   return (
     <View style={styles.container}>
@@ -4964,6 +4995,8 @@ function SettingsScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showMotivationModal, setShowMotivationModal] = useState(false);
+  const [showPushNotificationModal, setShowPushNotificationModal] = useState(false);
+  const [showDailyReminderModal, setShowDailyReminderModal] = useState(false);
   const [feedbackType, setFeedbackType] = useState('suggestion'); // suggestion, bug, compliment
   const [feedbackText, setFeedbackText] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -5133,50 +5166,46 @@ function SettingsScreen() {
         <View style={styles.settingsSection}>
           <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>🔔 Bildirimler</Text>
           <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
-            <TouchableOpacity onPress={handleNotificationToggle} style={styles.settingsItem}>
+            <TouchableOpacity 
+              onPress={() => setShowPushNotificationModal(true)} 
+              style={styles.settingsItem}
+            >
               <View style={styles.settingsItemLeft}>
                 <View style={[styles.settingsIconContainer, { backgroundColor: colors.secondary + '15' }]}>
                   <Icon name="bell" size={24} color={colors.secondary} />
                 </View>
                 <View style={styles.settingsItemInfo}>
-                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Günlük Hatırlatmalar</Text>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Push Bildirimleri</Text>
                   <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
-                    Çalışma hatırlatmaları ve motivasyon mesajları
+                    Motivasyon mesajları ve hatırlatmalar
                   </Text>
                 </View>
               </View>
               <View style={styles.settingsItemRight}>
-                <View style={[
-                  styles.switchContainer, 
-                  { backgroundColor: notificationsEnabled ? colors.success : colors.border }
-                ]}>
-                  <View style={[
-                    styles.switchThumb,
-                    { 
-                      backgroundColor: 'white',
-                      transform: [{ translateX: notificationsEnabled ? 20 : 2 }]
-                    }
-                  ]} />
-                </View>
+                <Text style={[styles.settingsValue, { color: colors.secondary }]}>Ayarla</Text>
+                <Icon name="chevron-right" size={20} color={colors.textMuted} />
               </View>
             </TouchableOpacity>
 
             <View style={styles.settingsDivider} />
 
-            <TouchableOpacity style={styles.settingsItem}>
+            <TouchableOpacity 
+              onPress={() => setShowDailyReminderModal(true)} 
+              style={styles.settingsItem}
+            >
               <View style={styles.settingsItemLeft}>
                 <View style={[styles.settingsIconContainer, { backgroundColor: colors.info + '15' }]}>
                   <Icon name="clock-alert" size={24} color={colors.info} />
                 </View>
                 <View style={styles.settingsItemInfo}>
-                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Çalışma Saatleri</Text>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Günlük Hatırlatmalar</Text>
                   <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
-                    Hangi saatlerde bildirim almak istediğinizi belirleyin
+                    Çalışma saatleri ve hedef kontrolü hatırlatmaları
                   </Text>
                 </View>
               </View>
               <View style={styles.settingsItemRight}>
-                <Text style={[styles.settingsValue, { color: colors.info }]}>09:00 - 18:00</Text>
+                <Text style={[styles.settingsValue, { color: colors.info }]}>Ayarla</Text>
                 <Icon name="chevron-right" size={20} color={colors.textMuted} />
               </View>
             </TouchableOpacity>
@@ -5472,6 +5501,18 @@ function SettingsScreen() {
       <MotivationSettingsModal
         visible={showMotivationModal}
         onClose={() => setShowMotivationModal(false)}
+      />
+
+      {/* Push Notification Settings Modal */}
+      <PushNotificationSettingsModal
+        visible={showPushNotificationModal}
+        onClose={() => setShowPushNotificationModal(false)}
+      />
+
+      {/* Daily Reminder Settings Modal */}
+      <DailyReminderSettingsModal
+        visible={showDailyReminderModal}
+        onClose={() => setShowDailyReminderModal(false)}
       />
     </View>
   );
