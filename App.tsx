@@ -14,12 +14,15 @@ import {
   PanResponder,
   Dimensions,
   Animated,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import {NavigationContainer, useFocusEffect} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PushNotification from 'react-native-push-notification';
+import { FeedbackService, FeedbackData } from './src/services/simpleFeedbackService';
 
 // Color definitions
 const colors = {
@@ -4944,6 +4947,11 @@ function AgendaScreen() {
 function SettingsScreen() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('suggestion'); // suggestion, bug, compliment
+  const [feedbackText, setFeedbackText] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   const clearAllData = () => {
     Alert.alert(
@@ -4975,6 +4983,92 @@ function SettingsScreen() {
   const handleNotificationToggle = () => {
     // TODO: Implement notification toggle functionality
     Alert.alert('Bildirim Ayarları', 'Bu özellik yakında eklenecek!');
+  };
+
+  const openFeedbackModal = () => {
+    setShowFeedbackModal(true);
+  };
+
+  const closeFeedbackModal = () => {
+    setShowFeedbackModal(false);
+    setFeedbackText('');
+    setUserEmail('');
+    setFeedbackType('suggestion');
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackText.trim()) {
+      Alert.alert('Hata', 'Lütfen geri bildiriminizi yazın.');
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+
+    try {
+      // Prepare feedback data
+      const feedbackData: FeedbackData = {
+        feedbackType: feedbackType as 'suggestion' | 'bug' | 'general',
+        feedbackText: feedbackText.trim(),
+        userEmail: userEmail.trim() || undefined,
+        deviceInfo: Platform.OS + ' ' + Platform.Version,
+        appVersion: '1.0.0',
+      };
+
+      // Try Formspree first
+      let success = await FeedbackService.sendFeedback(feedbackData);
+      let method = 'Formspree';
+
+      // If Formspree fails, try webhook method
+      if (!success) {
+        success = await FeedbackService.sendFeedbackViaWebhook(feedbackData);
+        method = 'Webhook';
+      }
+
+      if (success) {
+        closeFeedbackModal();
+        Alert.alert(
+          'Teşekkürler!', 
+          'Geri bildiriminiz başarıyla gönderildi. En kısa sürede değerlendireceğiz.'
+        );
+      } else {
+        // Final fallback to email client
+        const subject = `KPSS Takip - ${feedbackType === 'suggestion' ? 'Öneri' : feedbackType === 'bug' ? 'Hata Bildirimi' : 'İletişim'}`;
+        const body = `Geri Bildirim Türü: ${feedbackType === 'suggestion' ? 'Öneri' : feedbackType === 'bug' ? 'Hata Bildirimi' : 'Genel'}\n\nGeri Bildirim:\n${feedbackText}\n\nCihaz Bilgisi: ${Platform.OS} ${Platform.Version}\nUygulama Sürümü: 1.0.0\nZaman: ${new Date().toLocaleString('tr-TR')}\n\n${userEmail ? `İletişim: ${userEmail}` : ''}`;
+        
+        const emailUrl = `mailto:ozcann.talha@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        
+        const canOpen = await Linking.canOpenURL(emailUrl);
+        if (canOpen) {
+          await Linking.openURL(emailUrl);
+          closeFeedbackModal();
+          Alert.alert('E-posta Açıldı', 'Geri bildiriminizi e-posta uygulamanızdan gönderebilirsiniz.');
+        } else {
+          Alert.alert(
+            'Gönderim Başarısız',
+            'Geri bildirim gönderilemedi. Lütfen daha sonra tekrar deneyin veya ozcann.talha@gmail.com adresine e-posta gönderin.',
+            [{ text: 'Tamam', onPress: closeFeedbackModal }]
+          );
+        }
+      }
+    } catch (error) {
+      console.log('Feedback submission error:', error);
+      Alert.alert('Hata', 'Geri bildirim gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  const getFeedbackTypeColor = (type: string) => {
+    switch (type) {
+      case 'suggestion':
+        return colors.warning;
+      case 'bug':
+        return colors.danger;
+      case 'compliment':
+        return colors.success;
+      default:
+        return colors.primary;
+    }
   };
 
   return (
@@ -5128,6 +5222,29 @@ function SettingsScreen() {
           </View>
         </View>
 
+        {/* Feedback Section */}
+        <View style={styles.settingsSection}>
+          <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>💬 Geri Bildirim</Text>
+          <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+            <TouchableOpacity onPress={openFeedbackModal} style={styles.settingsItem}>
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.success + '15' }]}>
+                  <Icon name="message-text" size={24} color={colors.success} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Görüş ve Önerileriniz</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Uygulamamızı geliştirmemize yardımcı olun
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <Icon name="chevron-right" size={20} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Data Management */}
         <View style={styles.settingsSection}>
           <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>🗂️ Veri Yönetimi</Text>
@@ -5151,6 +5268,135 @@ function SettingsScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Feedback Modal */}
+      <Modal
+        visible={showFeedbackModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={closeFeedbackModal}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                💬 Geri Bildirim
+              </Text>
+              <TouchableOpacity onPress={closeFeedbackModal}>
+                <Icon name="close" size={24} color={colors.textLight} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Feedback Type Selection */}
+              <Text style={[styles.inputLabel, { color: colors.textLight }]}>
+                Geri bildirim türü seçin:
+              </Text>
+              <View style={styles.feedbackTypeContainer}>
+                {[
+                  { key: 'suggestion', label: 'Öneri', icon: 'lightbulb-on' },
+                  { key: 'bug', label: 'Hata', icon: 'bug' },
+                  { key: 'compliment', label: 'Genel', icon: 'heart' }
+                ].map((type) => (
+                  <TouchableOpacity
+                    key={type.key}
+                    style={[
+                      styles.feedbackTypeButton,
+                      { 
+                        backgroundColor: feedbackType === type.key ? `${getFeedbackTypeColor(type.key)}15` : colors.backgroundLight,
+                        borderColor: feedbackType === type.key ? getFeedbackTypeColor(type.key) : colors.border 
+                      }
+                    ]}
+                    onPress={() => setFeedbackType(type.key)}>
+                    <Icon 
+                      name={type.icon} 
+                      size={20} 
+                      color={feedbackType === type.key ? getFeedbackTypeColor(type.key) : colors.textLight} 
+                    />
+                    <Text style={[
+                      styles.feedbackTypeText,
+                      { 
+                        color: feedbackType === type.key ? getFeedbackTypeColor(type.key) : colors.textLight,
+                        fontWeight: feedbackType === type.key ? '600' : '500'
+                      }
+                    ]}>
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Feedback Text */}
+              <Text style={[styles.inputLabel, { color: colors.textLight }]}>
+                Geri bildiriminiz:
+              </Text>
+              <TextInput
+                style={[styles.feedbackInput, { 
+                  backgroundColor: colors.backgroundLight, 
+                  color: colors.text,
+                  borderColor: colors.border
+                }]}
+                multiline
+                numberOfLines={6}
+                placeholder="Düşüncelerinizi, önerilerinizi veya karşılaştığınız sorunları detaylı bir şekilde açıklayın..."
+                placeholderTextColor={colors.textMuted}
+                value={feedbackText}
+                onChangeText={setFeedbackText}
+                textAlignVertical="top"
+              />
+
+              {/* Email (Optional) */}
+              <Text style={[styles.inputLabel, { color: colors.textLight }]}>
+                E-posta adresiniz (isteğe bağlı):
+              </Text>
+              <TextInput
+                style={[styles.emailInput, { 
+                  backgroundColor: colors.backgroundLight, 
+                  color: colors.text,
+                  borderColor: colors.border
+                }]}
+                placeholder="ornek@email.com"
+                placeholderTextColor={colors.textMuted}
+                value={userEmail}
+                onChangeText={setUserEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.backgroundLight }]}
+                onPress={closeFeedbackModal}>
+                <Text style={[styles.modalButtonText, { color: colors.textLight }]}>İptal</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  styles.submitButton, 
+                  { 
+                    backgroundColor: isSubmittingFeedback ? colors.textMuted : colors.success,
+                    opacity: isSubmittingFeedback ? 0.7 : 1
+                  }
+                ]}
+                onPress={submitFeedback}
+                disabled={isSubmittingFeedback}>
+                {isSubmittingFeedback ? (
+                  <>
+                    <ActivityIndicator size="small" color="white" />
+                    <Text style={[styles.modalButtonText, { color: 'white', marginLeft: 8 }]}>Gönderiliyor...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="send" size={18} color="white" />
+                    <Text style={[styles.modalButtonText, { color: 'white', marginLeft: 8 }]}>Gönder</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -7721,5 +7967,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+  },
+  // Feedback Specific Styles
+  feedbackTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  feedbackTypeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackTypeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  emailInput: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 16,
+    height: 50,
+  },
+  submitButton: {
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
 });

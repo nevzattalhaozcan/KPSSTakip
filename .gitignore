@@ -1,44 +1,84 @@
-# OSX
-#
-.DS_Store
+# React Native Production# OSX
 
-# Xcode
+node_modules/#
+
+npm-debug.log*.DS_Store
+
+yarn-debug.log*
+
+yarn-error.log*# Xcode
+
 #
-build/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
+
+# Android buildsbuild/
+
+android/app/build/*.pbxuser
+
+android/build/!default.pbxuser
+
+android/.gradle/*.mode1v3
+
+android/local.properties!default.mode1v3
+
 *.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata
+
+# Release signing!default.mode2v3
+
+*.keystore*.perspectivev3
+
+!debug.keystore!default.perspectivev3
+
+android/keystore.propertiesxcuserdata
+
 *.xccheckout
-*.moved-aside
-DerivedData
-*.hmap
-*.ipa
-*.xcuserstate
+
+# iOS*.moved-aside
+
+ios/build/DerivedData
+
+ios/Pods/*.hmap
+
+*.xcworkspace*.ipa
+
+*.xcuserdata*.xcuserstate
+
 **/.xcode.env.local
 
-# Android/IntelliJ
-#
+# OS generated
+
+.DS_Store# Android/IntelliJ
+
+Thumbs.db#
+
 build/
-.idea
-.gradle
+
+# Logs.idea
+
+*.log.gradle
+
 local.properties
-*.iml
-*.hprof
+
+# Metro*.iml
+
+.metro-health-check**.hprof
+
 .cxx/
-*.keystore
-!debug.keystore
-.kotlin/
+
+# Debug tools*.keystore
+
+flipper-rn-addons.json!debug.keystore
+
+.vscode/.kotlin/
+
+.idea/
 
 # node.js
-#
-node_modules/
-npm-debug.log
+
+# Temporary#
+
+.tmp/node_modules/
+
+*.tmpnpm-debug.log
 yarn-error.log
 
 # fastlane
