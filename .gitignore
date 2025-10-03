@@ -64,3 +64,6 @@ DerivedData/
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# personal docs
+PLAY-STORE-GUIDE.md
