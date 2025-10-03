@@ -22,6 +22,8 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FeedbackService, FeedbackData } from './src/services/simpleFeedbackService';
+import { showMotivationalMessage, getEncouragementMessage } from './src/utils/motivationalMessages';
+import { MotivationSettingsModal } from './src/utils/motivationSettingsModal';
 
 // Color definitions
 const colors = {
@@ -639,7 +641,9 @@ function HomeScreen() {
       // Refresh progress
       loadProgress();
       
-      Alert.alert('✅', 'Çalışma kaydı başarıyla eklendi!');
+      // Show encouragement message
+      const encouragementMsg = getEncouragementMessage();
+      Alert.alert('✅ Harika!', `${encouragementMsg.message}\n\nÇalışma kaydınız başarıyla eklendi!`);
     } catch (error) {
       console.log('Error saving study log:', error);
       Alert.alert('❌', 'Kayıt sırasında hata oluştu');
@@ -1123,19 +1127,31 @@ function HomeScreen() {
 
         {/* Study Log Section */}
         <View style={styles.studyLogSection}>
-          <TouchableOpacity 
-            style={[styles.logButton, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              // Initialize input states with current values
-              setStudyMinutesInput(String(logStudyMinutes));
-              setVideoMinutesInput(String(logVideoMinutes));
-              setQuestionCountInput(String(logQuestionCount));
-              setShowLogModal(true);
-            }}
-          >
-            <Icon name="book-plus" size={24} color="white" />
-            <Text style={styles.logButtonText}>Çalışma Kaydet</Text>
-          </TouchableOpacity>
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity 
+              style={[styles.logButton, { backgroundColor: colors.primary, flex: 1, marginRight: 8 }]}
+              onPress={() => {
+                // Initialize input states with current values
+                setStudyMinutesInput(String(logStudyMinutes));
+                setVideoMinutesInput(String(logVideoMinutes));
+                setQuestionCountInput(String(logQuestionCount));
+                setShowLogModal(true);
+              }}
+            >
+              <Icon name="book-plus" size={24} color="white" />
+              <Text style={styles.logButtonText}>Çalışma Kaydet</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.motivationButton, { backgroundColor: colors.warning, flex: 1, marginLeft: 8 }]}
+              onPress={() => {
+                showMotivationalMessage();
+              }}
+            >
+              <Icon name="emoticon-happy" size={24} color="white" />
+              <Text style={styles.motivationButtonText}>Motivasyon</Text>
+            </TouchableOpacity>
+          </View>
           
           {/* Today's Summary with cumulative data */}
           {(() => {
@@ -4947,6 +4963,7 @@ function SettingsScreen() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showMotivationModal, setShowMotivationModal] = useState(false);
   const [feedbackType, setFeedbackType] = useState('suggestion'); // suggestion, bug, compliment
   const [feedbackText, setFeedbackText] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -5160,6 +5177,60 @@ function SettingsScreen() {
               </View>
               <View style={styles.settingsItemRight}>
                 <Text style={[styles.settingsValue, { color: colors.info }]}>09:00 - 18:00</Text>
+                <Icon name="chevron-right" size={20} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Motivation Settings */}
+        <View style={styles.settingsSection}>
+          <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>💪 Motivasyon</Text>
+          <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+            <TouchableOpacity 
+              onPress={() => {
+                // Show a motivational message now
+                showMotivationalMessage();
+              }} 
+              style={styles.settingsItem}
+            >
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.warning + '15' }]}>
+                  <Icon name="emoticon-happy" size={24} color={colors.warning} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Motivasyon Mesajı Göster</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Hemen bir motivasyon mesajı görmek için dokunun
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <Icon name="lightning-bolt" size={20} color={colors.warning} />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.settingsDivider} />
+
+            <TouchableOpacity 
+              onPress={() => {
+                setShowMotivationModal(true);
+              }}
+              style={styles.settingsItem}
+            >
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.primary + '15' }]}>
+                  <Icon name="cog" size={24} color={colors.primary} />
+                </View>
+                <View style={styles.settingsItemInfo}>
+                  <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Motivasyon Ayarları</Text>
+                  <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
+                    Mesaj sıklığı, kategoriler ve zamanlama
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingsItemRight}>
+                <Text style={[styles.settingsValue, { color: colors.primary }]}>Günlük</Text>
                 <Icon name="chevron-right" size={20} color={colors.textMuted} />
               </View>
             </TouchableOpacity>
@@ -5396,6 +5467,12 @@ function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Motivation Settings Modal */}
+      <MotivationSettingsModal
+        visible={showMotivationModal}
+        onClose={() => setShowMotivationModal(false)}
+      />
     </View>
   );
 }
@@ -5435,6 +5512,20 @@ function AppContent() {
     
     // In a real implementation with proper notification library:
     // configureNotifications();
+    
+    // Show motivational message when app starts
+    const showWelcomeMessage = async () => {
+      try {
+        // Add a small delay to let the app fully load
+        setTimeout(async () => {
+          await showMotivationalMessage();
+        }, 2000);
+      } catch (error) {
+        console.log('Error showing motivational message:', error);
+      }
+    };
+    
+    showWelcomeMessage();
   }, []);
 
   // Create enhanced pan responder for swipe gestures with smooth animations
@@ -6510,6 +6601,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   logButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  motivationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  motivationButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
