@@ -5433,7 +5433,7 @@ function AppContent() {
   useEffect(() => {
     // Configure notifications on app start
     PushNotification.configure({
-      onNotification: function(notification) {
+      onNotification: function(notification: any) {
         console.log('NOTIFICATION:', notification);
       },
       requestPermissions: Platform.OS === 'ios',
