@@ -1,42 +1,23 @@
-import PushNotification from 'react-native-push-notification';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
+
+// Fallback notification system for React Native 0.81+ compatibility
+let isConfigured = false;
 
 export const configureNotifications = () => {
-  PushNotification.configure({
-    onRegister: function (token) {
-      console.log('TOKEN:', token);
-    },
-    onNotification: function (notification) {
-      console.log('NOTIFICATION:', notification);
-    },
-    onAction: function (notification) {
-      console.log('ACTION:', notification.action);
-    },
-    onRegistrationError: function(err) {
-      console.error(err.message, err);
-    },
-    permissions: {
-      alert: true,
-      badge: true,
-      sound: true,
-    },
-    popInitialNotification: true,
-    requestPermissions: Platform.OS === 'ios',
-  });
-
-  if (Platform.OS === 'android') {
-    PushNotification.createChannel(
-      {
-        channelId: 'default-channel-id',
-        channelName: 'Default Channel',
-        channelDescription: 'A default channel for notifications',
-        playSound: false,
-        soundName: 'default',
-        importance: 4,
-        vibrate: true,
-      },
-      (created) => console.log(`createChannel returned '${created}'`)
-    );
+  try {
+    // For now, we'll use a fallback approach since react-native-push-notification
+    // has compatibility issues with React Native 0.81+ and the new architecture
+    console.log('Configuring notifications (fallback mode)');
+    
+    if (Platform.OS === 'ios') {
+      // iOS notification permissions are handled in AppDelegate.swift
+      console.log('iOS notification permissions configured in native code');
+    }
+    
+    isConfigured = true;
+  } catch (error) {
+    console.error('Failed to configure notifications:', error);
+    isConfigured = false;
   }
 };
 
@@ -49,18 +30,24 @@ export const scheduleEveningMotivation = () => {
 };
 
 export const cancelAllNotifications = () => {
-  PushNotification.cancelAllLocalNotifications();
+  // Fallback: Log the action since we can't cancel notifications without proper native module
+  console.log('All notifications would be cancelled (fallback mode)');
 };
 
 export const sendTestNotification = async (): Promise<boolean> => {
+  if (!isConfigured) {
+    console.warn('Notifications not configured');
+    return false;
+  }
+  
   try {
-    PushNotification.localNotification({
-      channelId: 'default-channel-id',
-      title: 'Test Bildirim',
-      message: 'Bu bir test bildirimidir! 🔔',
-      playSound: true,
-      soundName: 'default',
-    });
+    // Fallback: Show an alert instead of a push notification
+    Alert.alert(
+      'Test Bildirim',
+      'Bu bir test bildirimidir! 🔔',
+      [{ text: 'Tamam', style: 'default' }]
+    );
+    console.log('Test notification shown as alert');
     return true;
   } catch (error) {
     console.error('Test notification error:', error);
@@ -69,6 +56,10 @@ export const sendTestNotification = async (): Promise<boolean> => {
 };
 
 export const scheduleCustomNotifications = async () => {
+  if (!isConfigured) {
+    console.warn('Notifications not configured');
+    return;
+  }
   // This can be implemented to schedule custom notifications
   console.log('Custom notifications scheduled');
 };
@@ -85,11 +76,20 @@ export const loadNotificationSettings = async () => {
 };
 
 export const sendLocalNotification = (title: string, message: string) => {
-  PushNotification.localNotification({
-    channelId: 'default-channel-id',
-    title,
-    message,
-    playSound: true,
-    soundName: 'default',
-  });
+  if (!isConfigured) {
+    console.warn('Notifications not configured');
+    return;
+  }
+  
+  try {
+    // Fallback: Show an alert instead of a push notification
+    Alert.alert(
+      title,
+      message,
+      [{ text: 'Tamam', style: 'default' }]
+    );
+    console.log(`Local notification shown as alert: ${title}`);
+  } catch (error) {
+    console.error('Local notification error:', error);
+  }
 };

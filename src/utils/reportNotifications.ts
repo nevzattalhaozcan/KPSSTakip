@@ -1,5 +1,7 @@
-import PushNotification from 'react-native-push-notification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
+
+// Fallback notification system for React Native 0.81+ compatibility
 
 export interface ReportNotification {
   id: string;
@@ -67,36 +69,43 @@ export const scheduleReportNotification = (notification: ReportNotification): vo
   
   switch (notification.type) {
     case 'daily':
-      PushNotification.localNotificationSchedule({
-        id: notification.id,
-        title: notification.title,
-        message: notification.message,
-        date: getNextDailyDate(hours, minutes),
-        repeatType: 'day',
-        allowWhileIdle: true,
-      });
+      // Fallback: Log the scheduled notification
+      console.log(`Daily report notification would be scheduled for ${notification.title} at ${hours}:${minutes} (fallback mode)`);
+      
+      // In a real implementation, you would schedule the notification here
+      // PushNotification.localNotificationSchedule({
+      //   id: notification.id,
+      //   title: 'Günlük Rapor Hazır',
+      //   message: 'Bugünkü çalışma raporunuz hazır!',
+      //   date: getNextDailyDate(hours, minutes),
+      //   allowWhileIdle: true,
+      // });
       break;
       
     case 'weekly':
-      PushNotification.localNotificationSchedule({
-        id: notification.id,
-        title: notification.title,
-        message: notification.message,
-        date: getNextWeeklyDate(hours, minutes), // Sunday
-        repeatType: 'week',
-        allowWhileIdle: true,
-      });
+      // Fallback: Log the scheduled notification
+      console.log(`Weekly report notification would be scheduled for ${notification.title} at ${hours}:${minutes} (fallback mode)`);
+      // PushNotification.localNotificationSchedule({
+      //   id: notification.id,
+      //   title: notification.title,
+      //   message: notification.message,
+      //   date: getNextWeeklyDate(hours, minutes), // Sunday
+      //   repeatType: 'week',
+      //   allowWhileIdle: true,
+      // });
       break;
       
     case 'monthly':
-      PushNotification.localNotificationSchedule({
-        id: notification.id,
-        title: notification.title,
-        message: notification.message,
-        date: getNextMonthlyDate(hours, minutes), // First day of month
-        repeatType: 'day', // Use day repeat and handle monthly logic manually
-        allowWhileIdle: true,
-      });
+      // Fallback: Log the scheduled notification
+      console.log(`Monthly report notification would be scheduled for ${notification.title} at ${hours}:${minutes} (fallback mode)`);
+      // PushNotification.localNotificationSchedule({
+      //   id: notification.id,
+      //   title: notification.title,
+      //   message: notification.message,
+      //   date: getNextMonthlyDate(hours, minutes), // First day of month
+      //   repeatType: 'day', // Use day repeat and handle monthly logic manually
+      //   allowWhileIdle: true,
+      // });
       break;
   }
 };
@@ -107,7 +116,8 @@ export const scheduleAllReportNotifications = async (): Promise<void> => {
     
     // Cancel existing report notifications
     notifications.forEach(notification => {
-      PushNotification.cancelLocalNotification(notification.id);
+      // Fallback: Log the cancellation
+      console.log(`Notification cancelled for ${notification.title} (fallback mode)`);
     });
     
     // Schedule active notifications
@@ -131,7 +141,8 @@ export const toggleReportNotification = async (id: string, isActive: boolean): P
       if (isActive) {
         scheduleReportNotification(notifications[index]);
       } else {
-        PushNotification.cancelLocalNotification(id);
+        // Fallback: Log the cancellation
+        console.log(`Notification cancelled for ${id} (fallback mode)`);
       }
     }
   } catch (error) {
@@ -150,7 +161,8 @@ export const updateReportNotificationTime = async (id: string, time: string): Pr
       
       // Reschedule if active
       if (notifications[index].isActive) {
-        PushNotification.cancelLocalNotification(id);
+        // Fallback: Log the cancellation and rescheduling
+        console.log(`Notification cancelled and rescheduled for ${id} (fallback mode)`);
         scheduleReportNotification(notifications[index]);
       }
     }
@@ -196,10 +208,11 @@ const getNextMonthlyDate = (hours: number, minutes: number): Date => {
 // Alias functions for backward compatibility
 export const scheduleEndOfDayNotification = scheduleReportNotification;
 export const showDailyReportReadyNotification = () => {
-  PushNotification.localNotification({
-    title: 'Günlük Rapor Hazır',
-    message: 'Bugünkü çalışma raporunuz hazır!',
-    playSound: true,
-    soundName: 'default',
-  });
+  // Fallback: Show alert instead of push notification
+  Alert.alert(
+    'Günlük Rapor Hazır',
+    'Bugünkü çalışma raporunuz hazır!',
+    [{ text: 'Tamam', style: 'default' }]
+  );
+  console.log('Daily report notification shown as alert (fallback mode)');
 };
