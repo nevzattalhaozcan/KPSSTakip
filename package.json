@@ -1,5 +1,5 @@
 {
-  "name": "KPSSTakip",
+  "name": "kpss-takip",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -12,6 +12,7 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/checkbox": "^0.5.20",
     "@react-native-community/datetimepicker": "^8.4.5",
+    "@react-native-picker/picker": "^2.11.2",
     "@react-navigation/bottom-tabs": "^7.4.7",
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/stack": "^7.4.8",
@@ -29,7 +30,10 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-native": "^0.72.0",
     "@types/react-native-push-notification": "^8.1.4",
-    "@types/react-native-vector-icons": "^6.4.18"
+    "@types/react-native-vector-icons": "^6.4.18",
+    "typescript": "^5.0.0"
   }
 }

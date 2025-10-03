@@ -9,6 +9,7 @@ import {
   TextInput,
   Switch,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Picker } from '@react-native-picker/picker';
@@ -17,16 +18,16 @@ import {
   CustomReminder,
   loadCustomReminders,
   createCustomReminder,
+  editCustomReminder,
   updateCustomReminder,
   deleteCustomReminder,
   reminderTemplates,
+  scheduleAllCustomReminders,
   createQuickStudyReminder,
   createQuickBreakReminder,
   createQuickGoalReminder,
-  scheduleAllCustomReminders,
-  cancelAllCustomReminders,
 } from '../utils/customReminders';
-import { useTheme } from '../App'; // Assuming theme context is available
+import { useTheme } from '../utils/theme';
 
 const CustomRemindersScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -89,7 +90,19 @@ const CustomRemindersScreen = () => {
     }
 
     try {
-      await createCustomReminder(formData);
+      // Convert form data to match CustomReminder interface
+      const reminderData = {
+        title: formData.title,
+        message: formData.message,
+        time: formData.time,
+        days: formData.days.map(d => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][d]),
+        icon: formData.icon,
+        category: formData.category,
+        repeatType: formData.repeatType as 'weekly' | 'daily' | 'monthly',
+        isActive: formData.enabled
+      };
+      
+      await createCustomReminder(reminderData);
       setShowCreateModal(false);
       resetForm();
       loadReminders();
@@ -104,7 +117,18 @@ const CustomRemindersScreen = () => {
     if (!editingReminder) return;
 
     try {
-      await updateCustomReminder(editingReminder.id, formData);
+      const reminderData = {
+        title: formData.title,
+        message: formData.message,
+        time: formData.time,
+        days: formData.days.map(d => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][d]),
+        icon: formData.icon,
+        category: formData.category,
+        repeatType: formData.repeatType as 'weekly' | 'daily' | 'monthly',
+        isActive: formData.enabled
+      };
+      
+      await updateCustomReminder(editingReminder.id, reminderData);
       setShowEditModal(false);
       setEditingReminder(null);
       resetForm();
@@ -136,26 +160,29 @@ const CustomRemindersScreen = () => {
   };
 
   const handleToggleReminder = async (reminder: CustomReminder) => {
-    await updateCustomReminder(reminder.id, { enabled: !reminder.enabled });
+    await updateCustomReminder(reminder.id, { isActive: !reminder.isActive });
     loadReminders();
     await scheduleAllCustomReminders();
   };
 
   const openEditModal = (reminder: CustomReminder) => {
     setEditingReminder(reminder);
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayIndices = reminder.days.map(day => dayNames.indexOf(day)).filter(index => index !== -1);
+    
     setFormData({
       title: reminder.title,
       message: reminder.message,
       time: reminder.time,
-      days: reminder.days,
-      enabled: reminder.enabled,
-      sound: reminder.sound,
-      vibration: reminder.vibration,
-      repeatType: reminder.repeatType,
-      category: reminder.category,
+      days: dayIndices,
+      enabled: reminder.isActive || reminder.enabled || true,
+      sound: reminder.sound || 'default',
+      vibration: reminder.vibration || true,
+      repeatType: reminder.repeatType as 'daily' | 'weekly' | 'monthly' | 'once',
+      category: reminder.category as 'study' | 'break' | 'goal' | 'motivation' | 'custom',
       subject: reminder.subject || '',
       icon: reminder.icon,
-      priority: reminder.priority,
+      priority: reminder.priority || 'default',
     });
     setShowEditModal(true);
   };
@@ -178,7 +205,8 @@ const CustomRemindersScreen = () => {
 
   const addTemplateReminder = async (template: typeof reminderTemplates[0]) => {
     try {
-      await createCustomReminder(template);
+      const { id, ...templateData } = template; // Remove id from template
+      await createCustomReminder(templateData);
       loadReminders();
       await scheduleAllCustomReminders();
       Alert.alert('Başarılı', 'Şablon hatırlatıcı eklendi!');
@@ -237,14 +265,13 @@ const CustomRemindersScreen = () => {
             </Text>
             <Text style={[styles.reminderTime, { color: themeColors.textLight }]}>
               {reminder.time} • {reminder.repeatType === 'daily' ? 'Her gün' : 
-                reminder.repeatType === 'weekly' ? 'Haftalık' : 
-                reminder.repeatType === 'once' ? 'Bir kez' : 'Aylık'}
+                reminder.repeatType === 'weekly' ? 'Haftalık' : 'Aylık'}
             </Text>
           </View>
         </View>
         <View style={styles.reminderActions}>
           <Switch
-            value={reminder.enabled}
+            value={reminder.isActive || reminder.enabled || false}
             onValueChange={() => handleToggleReminder(reminder)}
             trackColor={{ false: themeColors.border, true: themeColors.primary }}
           />
@@ -411,7 +438,7 @@ const CustomRemindersScreen = () => {
               style={[styles.addButton, { backgroundColor: themeColors.primary }]}
               onPress={() => setShowCreateModal(true)}
             >
-              <Icon name="plus" size={20} color={themeColors.backgroundLight} />
+              <Icon name="plus" size={20} color={themeColors.background} />
             </TouchableOpacity>
           </View>
 
@@ -459,52 +486,52 @@ const CustomRemindersScreen = () => {
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { padding: 24, paddingTop: 60, paddingBottom: 24 },
-  headerTitle: { fontSize: 28, fontWeight: '800', marginBottom: 8 },
-  headerSubtitle: { fontSize: 16, fontWeight: '500' },
+  headerTitle: { fontSize: 28, fontWeight: '800' as const, marginBottom: 8 },
+  headerSubtitle: { fontSize: 16, fontWeight: '500' as const },
   content: { flex: 1 },
   quickActions: { margin: 16, padding: 20, borderRadius: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16 },
-  quickButtonsRow: { flexDirection: 'row', gap: 12 },
-  quickButton: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center' },
-  quickButtonText: { fontSize: 12, fontWeight: '600', marginTop: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: '700' as const, marginBottom: 16 },
+  quickButtonsRow: { flexDirection: 'row' as const, gap: 12 },
+  quickButton: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center' as const },
+  quickButtonText: { fontSize: 12, fontWeight: '600' as const, marginTop: 8 },
   remindersList: { margin: 16 },
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  addButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  listHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 16 },
+  addButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center' as const, justifyContent: 'center' as const },
   reminderCard: { padding: 16, borderRadius: 12, marginBottom: 12 },
-  reminderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  reminderInfo: { flexDirection: 'row', flex: 1 },
+  reminderHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'flex-start' as const, marginBottom: 12 },
+  reminderInfo: { flexDirection: 'row' as const, flex: 1 },
   reminderText: { marginLeft: 12, flex: 1 },
-  reminderTitle: { fontSize: 16, fontWeight: '700' },
+  reminderTitle: { fontSize: 16, fontWeight: '700' as const },
   reminderTime: { fontSize: 14, marginTop: 4 },
-  reminderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  actionButton: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  reminderActions: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+  actionButton: { width: 32, height: 32, borderRadius: 8, alignItems: 'center' as const, justifyContent: 'center' as const },
   reminderMessage: { fontSize: 14, lineHeight: 20, marginBottom: 8 },
-  reminderDays: { flexDirection: 'row', gap: 6 },
-  dayBadge: { fontSize: 12, fontWeight: '600' },
-  emptyState: { padding: 40, borderRadius: 12, alignItems: 'center' },
-  emptyText: { fontSize: 16, fontWeight: '600', marginTop: 16 },
-  emptySubtext: { fontSize: 14, textAlign: 'center', marginTop: 8 },
+  reminderDays: { flexDirection: 'row' as const, gap: 6 },
+  dayBadge: { fontSize: 12, fontWeight: '600' as const },
+  emptyState: { padding: 40, borderRadius: 12, alignItems: 'center' as const },
+  emptyText: { fontSize: 16, fontWeight: '600' as const, marginTop: 16 },
+  emptySubtext: { fontSize: 14, textAlign: 'center' as const, marginTop: 8 },
   templatesSection: { margin: 16, padding: 20, borderRadius: 16 },
-  templateItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
+  templateItem: { flexDirection: 'row' as const, alignItems: 'center' as const, paddingVertical: 12, borderBottomWidth: 1 },
   templateInfo: { flex: 1, marginLeft: 12 },
-  templateTitle: { fontSize: 14, fontWeight: '600' },
+  templateTitle: { fontSize: 14, fontWeight: '600' as const },
   templateDesc: { fontSize: 12, marginTop: 2 },
   modalContainer: { flex: 1 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
+  modalHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, padding: 16, borderBottomWidth: 1 },
   modalCancel: { fontSize: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '700' },
-  modalSave: { fontSize: 16, fontWeight: '600' },
+  modalTitle: { fontSize: 18, fontWeight: '700' as const },
+  modalSave: { fontSize: 16, fontWeight: '600' as const },
   modalContent: { flex: 1, padding: 16 },
   formSection: { marginBottom: 24 },
   inputGroup: { marginBottom: 16 },
-  inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  inputLabel: { fontSize: 14, fontWeight: '600' as const, marginBottom: 8 },
   textInput: { padding: 12, borderRadius: 8, fontSize: 16 },
-  textArea: { height: 80, textAlignVertical: 'top' },
-  timeButton: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8 },
+  textArea: { height: 80, textAlignVertical: 'top' as const },
+  timeButton: { flexDirection: 'row' as const, alignItems: 'center' as const, padding: 12, borderRadius: 8 },
   timeText: { marginLeft: 8, fontSize: 16 },
-};
+});
 
 export default CustomRemindersScreen;

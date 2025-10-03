@@ -5581,6 +5581,7 @@ function AppContent() {
       <NavigationContainer ref={navigationRef}>
         <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
       <Tab.Navigator
+        id={undefined}
         screenOptions={({route}) => ({
           headerShown: false,
           tabBarIcon: ({color, size}) => getTabBarIcon(route, color, size),
