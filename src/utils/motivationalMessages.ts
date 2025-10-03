@@ -251,15 +251,9 @@ export const shouldShowMotivationalMessage = async (): Promise<boolean> => {
   }
 };
 
-// Show motivational message as alert
-export const showMotivationalMessage = async (): Promise<boolean> => {
+// Show motivational message with alert
+export const showMotivationalMessage = async (onOpenSettings?: () => void): Promise<boolean> => {
   try {
-    const shouldShow = await shouldShowMotivationalMessage();
-    
-    if (!shouldShow) {
-      return false;
-    }
-
     const message = await getRandomMotivationalMessage();
     
     if (!message) {
@@ -283,8 +277,11 @@ export const showMotivationalMessage = async (): Promise<boolean> => {
           text: '⚙️ Ayarlar',
           style: 'default',
           onPress: () => {
-            // TODO: Navigate to motivation settings
-            console.log('Navigate to motivation settings');
+            if (onOpenSettings) {
+              onOpenSettings();
+            } else {
+              console.log('Navigate to motivation settings');
+            }
           }
         }
       ]

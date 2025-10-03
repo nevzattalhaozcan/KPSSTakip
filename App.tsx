@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useRef} from 'react';
+import React, {useEffect, useState, useRef, createContext, useContext} from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -28,6 +28,15 @@ import { motivationalPushService } from './src/utils/pushNotificationService';
 import { PushNotificationSettingsModal } from './src/utils/pushNotificationSettingsModal';
 import { dailyReminderService } from './src/utils/dailyReminderService';
 import { DailyReminderSettingsModal } from './src/utils/dailyReminderSettingsModal';
+
+// Create context for global modal functions
+const ModalContext = createContext<{
+  openMotivationModal: () => void;
+}>({
+  openMotivationModal: () => {},
+});
+
+export const useModal = () => useContext(ModalContext);
 
 // Color definitions
 const colors = {
@@ -165,6 +174,7 @@ interface DayCourse {
 type CalendarViewMode = 'list' | 'calendar';
 
 function HomeScreen() {
+  const { openMotivationModal } = useModal();
   const [weeklySchedule, setWeeklySchedule] = useState<CustomWeeklySchedule[]>(defaultWeeklySchedule);
   const [todaySubject, setTodaySubject] = useState<CustomWeeklySchedule | null>(null);
   const [stats, setStats] = useState({
@@ -901,7 +911,9 @@ function HomeScreen() {
       // Show welcome message only once after a delay
       if (!hasShownWelcomeMessage) {
         setTimeout(() => {
-          showMotivationalMessage();
+          showMotivationalMessage(() => {
+            openMotivationModal();
+          });
           setHasShownWelcomeMessage(true);
         }, 2000);
       }
@@ -1160,7 +1172,7 @@ function HomeScreen() {
         <View style={styles.studyLogSection}>
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity 
-              style={[styles.logButton, { backgroundColor: colors.primary, flex: 1, marginRight: 8 }]}
+              style={[styles.logButton, { backgroundColor: colors.primary }]}
               onPress={() => {
                 // Initialize input states with current values
                 setStudyMinutesInput(String(logStudyMinutes));
@@ -1169,17 +1181,21 @@ function HomeScreen() {
                 setShowLogModal(true);
               }}
             >
-              <Icon name="book-plus" size={24} color="white" />
+              <Icon name="book-plus" size={18} color="white" />
               <Text style={styles.logButtonText}>Çalışma Kaydet</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.motivationButton, { backgroundColor: colors.warning, flex: 1, marginLeft: 8 }]}
+              style={[styles.motivationButton, { backgroundColor: colors.warning }]}
               onPress={() => {
-                showMotivationalMessage();
+                showMotivationalMessage(() => {
+                  // Open motivation settings modal when Ayarlar is pressed
+                  openMotivationModal();
+                });
               }}
+              activeOpacity={0.8}
             >
-              <Icon name="emoticon-happy" size={24} color="white" />
+              <Icon name="emoticon-happy" size={18} color="white" />
               <Text style={styles.motivationButtonText}>Motivasyon</Text>
             </TouchableOpacity>
           </View>
@@ -4994,13 +5010,14 @@ function SettingsScreen() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [showMotivationModal, setShowMotivationModal] = useState(false);
   const [showPushNotificationModal, setShowPushNotificationModal] = useState(false);
   const [showDailyReminderModal, setShowDailyReminderModal] = useState(false);
   const [feedbackType, setFeedbackType] = useState('suggestion'); // suggestion, bug, compliment
   const [feedbackText, setFeedbackText] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  
+  const { openMotivationModal } = useModal();
 
   const clearAllData = () => {
     Alert.alert(
@@ -5243,7 +5260,7 @@ function SettingsScreen() {
 
             <TouchableOpacity 
               onPress={() => {
-                setShowMotivationModal(true);
+                openMotivationModal();
               }}
               style={styles.settingsItem}
             >
@@ -5333,7 +5350,7 @@ function SettingsScreen() {
                 <View style={styles.settingsItemInfo}>
                   <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Görüş ve Önerileriniz</Text>
                   <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
-                    Uygulamamızı geliştirmemize yardımcı olun
+                    Uygulamayı geliştirmeme yardımcı olun
                   </Text>
                 </View>
               </View>
@@ -5497,12 +5514,6 @@ function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* Motivation Settings Modal */}
-      <MotivationSettingsModal
-        visible={showMotivationModal}
-        onClose={() => setShowMotivationModal(false)}
-      />
-
       {/* Push Notification Settings Modal */}
       <PushNotificationSettingsModal
         visible={showPushNotificationModal}
@@ -5542,6 +5553,9 @@ function AppContent() {
   const [_weeklySchedule, _setWeeklySchedule] = useState(defaultWeeklySchedule);
   const navigationRef = useRef<any>(null);
   
+  // Global modal states
+  const [showMotivationModal, setShowMotivationModal] = useState(false);
+  
   // Animation states for smooth swipe feedback
   const swipeAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
@@ -5559,7 +5573,9 @@ function AppContent() {
       try {
         // Add a small delay to let the app fully load
         setTimeout(async () => {
-          await showMotivationalMessage();
+          await showMotivationalMessage(() => {
+            setShowMotivationModal(true);
+          });
         }, 2000);
       } catch (error) {
         console.log('Error showing motivational message:', error);
@@ -5709,6 +5725,7 @@ function AppContent() {
       
       <NavigationContainer ref={navigationRef}>
         <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
+        <ModalContext.Provider value={{ openMotivationModal: () => setShowMotivationModal(true) }}>
       <Tab.Navigator
         id={undefined}
         screenOptions={({route}) => ({
@@ -5736,6 +5753,13 @@ function AppContent() {
         <Tab.Screen name="Raporlar" component={ReportsScreen} />
         <Tab.Screen name="Ayarlar" component={SettingsScreen} />
       </Tab.Navigator>
+      </ModalContext.Provider>
+      
+      {/* Global Motivation Settings Modal */}
+      <MotivationSettingsModal
+        visible={showMotivationModal}
+        onClose={() => setShowMotivationModal(false)}
+      />
     </NavigationContainer>
     </Animated.View>
   );
@@ -6632,38 +6656,75 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   logButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#2E5BFF',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    elevation: 2,
+    shadowColor: '#2E5BFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    minHeight: 48,
   },
   logButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: 6,
   },
   actionButtonsRow: {
     flexDirection: 'row',
     marginBottom: 12,
+    gap: 8,
   },
   motivationButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    elevation: 2,
+    shadowColor: '#FFC107',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    minHeight: 48,
+  },
+  motivationButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  motivationButtonIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  motivationButtonTextContainer: {
+    flex: 1,
   },
   motivationButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: 6,
+  },
+  motivationButtonSubtext: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    fontWeight: '500',
   },
   todayLogSummary: {
     backgroundColor: '#FFFFFF',
