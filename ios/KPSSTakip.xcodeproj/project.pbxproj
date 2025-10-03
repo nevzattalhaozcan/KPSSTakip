@@ -12,6 +12,8 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		A9D5F1F1B8C4891677CED065 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		CF6EE2119A58EA787C481D07 /* libPods-KPSSTakip.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 64638D945ECC9DBA78A9C054 /* libPods-KPSSTakip.a */; };
+		344015AF5097459C9F161498 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 523291E925354A13B54ECFD2 /* BootSplash.storyboard */; };
+		F09ED05092D9422790ADF1D9 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C1445FFFFD2F450692393B06 /* Colors.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +27,8 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = KPSSTakip/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		84FD11E6AA199E586BF4A6B0 /* Pods-KPSSTakip.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-KPSSTakip.release.xcconfig"; path = "Target Support Files/Pods-KPSSTakip/Pods-KPSSTakip.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		523291E925354A13B54ECFD2 /* BootSplash.storyboard */ = {isa = PBXFileReference; name = "BootSplash.storyboard"; path = "KPSSTakip/BootSplash.storyboard"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		C1445FFFFD2F450692393B06 /* Colors.xcassets */ = {isa = PBXFileReference; name = "Colors.xcassets"; path = "KPSSTakip/Colors.xcassets"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = folder.assetcatalog; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,6 +51,8 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				523291E925354A13B54ECFD2 /* BootSplash.storyboard */,
+				C1445FFFFD2F450692393B06 /* Colors.xcassets */,
 			);
 			name = KPSSTakip;
 			sourceTree = "<group>";
@@ -161,6 +167,8 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				A9D5F1F1B8C4891677CED065 /* PrivacyInfo.xcprivacy in Resources */,
+				344015AF5097459C9F161498 /* BootSplash.storyboard in Resources */,
+				F09ED05092D9422790ADF1D9 /* Colors.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

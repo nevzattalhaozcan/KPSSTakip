@@ -21,6 +21,7 @@ import {NavigationContainer, useFocusEffect} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import BootSplash from 'react-native-bootsplash';
 import { FeedbackService, FeedbackData } from './src/services/simpleFeedbackService';
 import { showMotivationalMessage, getEncouragementMessage } from './src/utils/motivationalMessages';
 import { MotivationSettingsModal } from './src/utils/motivationSettingsModal';
@@ -5644,6 +5645,24 @@ export default function App() {
       }
     };
     loadThemePreference();
+  }, []);
+
+  // Hide splash screen after app initialization
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // Wait for app to initialize
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Hide the splash screen
+        await BootSplash.hide({ fade: true });
+        console.log('Splash screen hidden');
+      } catch (error) {
+        console.log('Error hiding splash screen:', error);
+      }
+    };
+    
+    init();
   }, []);
 
   const toggleDarkMode = async () => {
