@@ -8,9 +8,12 @@ yarn-debug.log*
 
 yarn-error.log*# Xcode
 
-#
+# Android
+PLAY-STORE-GUIDE.md
+*.properties
+*.keystore
 
-# Android buildsbuild/
+# Android builds
 
 android/app/build/*.pbxuser
 
