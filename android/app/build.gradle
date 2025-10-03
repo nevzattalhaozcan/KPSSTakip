@@ -109,6 +109,24 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            
+            // AAB optimizations
+            shrinkResources enableProguardInReleaseBuilds
+            zipAlignEnabled true
+            crunchPngs false // Let Play Store handle PNG optimization
+        }
+    }
+
+    // Enable app bundle configuration
+    bundle {
+        language {
+            enableSplit = true
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
         }
     }
 
