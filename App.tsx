@@ -29,6 +29,21 @@ import { PushNotificationSettingsModal } from './src/utils/pushNotificationSetti
 import { dailyReminderService } from './src/utils/dailyReminderService';
 import { DailyReminderSettingsModal } from './src/utils/dailyReminderSettingsModal';
 
+// Theme Context
+interface ThemeContextType {
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+  colors: ColorScheme;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+  isDarkMode: false,
+  toggleDarkMode: () => {},
+  colors: {} as ColorScheme,
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
 // Create context for global modal functions
 const ModalContext = createContext<{
   openMotivationModal: () => void;
@@ -38,8 +53,34 @@ const ModalContext = createContext<{
 
 export const useModal = () => useContext(ModalContext);
 
-// Color definitions
-const colors = {
+// Color Scheme Interface
+interface ColorScheme {
+  primary: string;
+  primaryLight: string;
+  primaryDark: string;
+  secondary: string;
+  success: string;
+  warning: string;
+  danger: string;
+  info: string;
+  light: string;
+  dark: string;
+  background: string;
+  backgroundLight: string;
+  card: string;
+  cardSecondary: string;
+  text: string;
+  textLight: string;
+  textSecondary: string;
+  textMuted: string;
+  border: string;
+  shadow: string;
+  overlay: string;
+  modalBackground: string;
+}
+
+// Light theme colors
+const lightColors: ColorScheme = {
   primary: '#2E5BFF',
   primaryLight: '#4A73FF',
   primaryDark: '#1E4BDF',
@@ -59,6 +100,35 @@ const colors = {
   textSecondary: '#95A5A6',
   textMuted: '#BDC3C7',
   border: '#E9ECEF',
+  shadow: '#000000',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  modalBackground: '#FFFFFF',
+};
+
+// Dark theme colors
+const darkColors: ColorScheme = {
+  primary: '#4A73FF',
+  primaryLight: '#6B8AFF',
+  primaryDark: '#2E5BFF',
+  secondary: '#FF8A65',
+  success: '#4CAF50',
+  warning: '#FFB74D',
+  danger: '#F44336',
+  info: '#29B6F6',
+  light: '#424242',
+  dark: '#121212',
+  background: '#121212',
+  backgroundLight: '#1E1E1E',
+  card: '#1E1E1E',
+  cardSecondary: '#2A2A2A',
+  text: '#FFFFFF',
+  textLight: '#B0B0B0',
+  textSecondary: '#9E9E9E',
+  textMuted: '#757575',
+  border: '#333333',
+  shadow: '#000000',
+  overlay: 'rgba(0, 0, 0, 0.8)',
+  modalBackground: '#1E1E1E',
 };
 
 // Daily Goal interface
@@ -175,6 +245,8 @@ type CalendarViewMode = 'list' | 'calendar';
 
 function HomeScreen() {
   const { openMotivationModal } = useModal();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [weeklySchedule, setWeeklySchedule] = useState<CustomWeeklySchedule[]>(defaultWeeklySchedule);
   const [todaySubject, setTodaySubject] = useState<CustomWeeklySchedule | null>(null);
   const [stats, setStats] = useState({
@@ -2511,6 +2583,8 @@ const defaultCourses: Course[] = [
 
 // Courses Screen Component (formerly Progress Screen)
 function CoursesScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [courses, setCourses] = useState<Course[]>(defaultCourses);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -3047,6 +3121,8 @@ function CoursesScreen() {
 
 // Reports Screen Component
 function ReportsScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [reportData, setReportData] = useState({
     thisWeek: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics: 0, totalTopics: 0 },
     lastWeek: { topics: 0, videos: 0, questions: 0, studyTime: 0, completedTopics: 0, totalTopics: 0 },
@@ -3607,6 +3683,8 @@ function ReportsScreen() {
 
 // Agenda Screen Component
 function AgendaScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [weeklyAgenda, setWeeklyAgenda] = useState<DayAgenda[]>([]);
   const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>('list');
   const [refreshing, setRefreshing] = useState(false);
@@ -5007,7 +5085,8 @@ function AgendaScreen() {
 
 // Settings Screen Component
 function SettingsScreen() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { colors, isDarkMode, toggleDarkMode } = useTheme();
+  const styles = createStyles(colors);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showPushNotificationModal, setShowPushNotificationModal] = useState(false);
@@ -5042,8 +5121,7 @@ function SettingsScreen() {
   };
 
   const handleThemeToggle = () => {
-    // TODO: Implement theme toggle functionality
-    Alert.alert('Tema Değişikliği', 'Bu özellik yakında eklenecek!');
+    toggleDarkMode();
   };
 
   const handleNotificationToggle = () => {
@@ -5549,227 +5627,111 @@ const getTabBarIcon = (route: any, color: string, size: number) => {
   return <Icon name={iconName} size={size} color={color} />;
 };
 
-function AppContent() {
-  const [_weeklySchedule, _setWeeklySchedule] = useState(defaultWeeklySchedule);
-  const navigationRef = useRef<any>(null);
-  
-  // Global modal states
-  const [showMotivationModal, setShowMotivationModal] = useState(false);
-  
-  // Animation states for smooth swipe feedback
-  const swipeAnimation = useRef(new Animated.Value(0)).current;
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
-  const [isGesturing, setIsGesturing] = useState(false);
+// Main App Component with Theme Provider
+export default function App() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // Load theme preference on app start
   useEffect(() => {
-    // Configure notifications on app start (fallback mode)
-    console.log('Notifications configured in fallback mode');
-    
-    // In a real implementation with proper notification library:
-    // configureNotifications();
-    
-    // Show motivational message when app starts
-    const showWelcomeMessage = async () => {
+    const loadThemePreference = async () => {
       try {
-        // Add a small delay to let the app fully load
-        setTimeout(async () => {
-          await showMotivationalMessage(() => {
-            setShowMotivationModal(true);
-          });
-        }, 2000);
+        const savedTheme = await AsyncStorage.getItem('isDarkMode');
+        if (savedTheme !== null) {
+          setIsDarkMode(JSON.parse(savedTheme));
+        }
       } catch (error) {
-        console.log('Error showing motivational message:', error);
+        console.log('Error loading theme preference:', error);
       }
     };
-    
-    showWelcomeMessage();
+    loadThemePreference();
   }, []);
 
-  // Create enhanced pan responder for swipe gestures with smooth animations
-  const screenWidth = Dimensions.get('window').width;
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond to horizontal swipes with minimum movement
-        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-        const hasMinMovement = Math.abs(gestureState.dx) > 15;
-        return isHorizontal && hasMinMovement;
-      },
-      onPanResponderGrant: () => {
-        // Start gesture - add visual feedback
-        setIsGesturing(true);
-        Animated.parallel([
-          Animated.timing(scaleAnimation, {
-            toValue: 0.98,
-            duration: 150,
-            useNativeDriver: true,
-          }),
-          Animated.timing(swipeAnimation, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        // Provide real-time visual feedback during swipe
-        if (isGesturing) {
-          const maxSwipe = screenWidth * 0.3;
-          const normalizedDx = Math.max(-maxSwipe, Math.min(maxSwipe, gestureState.dx));
-          const opacity = Math.abs(normalizedDx) / maxSwipe;
-          
-          swipeAnimation.setValue(normalizedDx * 0.3);
-        }
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        const swipeThreshold = screenWidth * 0.25;
-        setIsGesturing(false);
-        
-        // Smooth return animation
-        Animated.parallel([
-          Animated.spring(scaleAnimation, {
-            toValue: 1,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-          Animated.spring(swipeAnimation, {
-            toValue: 0,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]).start();
+  const toggleDarkMode = async () => {
+    try {
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      await AsyncStorage.setItem('isDarkMode', JSON.stringify(newTheme));
+    } catch (error) {
+      console.log('Error saving theme preference:', error);
+    }
+  };
 
-        if (navigationRef.current) {
-          try {
-            const state = navigationRef.current.getState();
-            
-            // Check if state exists and has the required properties
-            if (state && typeof state.index === 'number' && state.routes && Array.isArray(state.routes)) {
-              const currentIndex = state.index;
-              const routes = state.routes;
-              
-              if (gestureState.dx > swipeThreshold && currentIndex > 0) {
-                // Swipe right - go to previous tab with haptic feedback
-                if (Platform.OS === 'android') {
-                  // Add subtle vibration feedback for Android
-                  // HapticFeedback.impact(HapticFeedback.ImpactFeedbackStyle.Light);
-                }
-                navigationRef.current.navigate(routes[currentIndex - 1].name);
-              } else if (gestureState.dx < -swipeThreshold && currentIndex < routes.length - 1) {
-                // Swipe left - go to next tab with haptic feedback  
-                if (Platform.OS === 'android') {
-                  // Add subtle vibration feedback for Android
-                  // HapticFeedback.impact(HapticFeedback.ImpactFeedbackStyle.Light);
-                }
-                navigationRef.current.navigate(routes[currentIndex + 1].name);
-              }
-            }
-          } catch (error) {
-            console.log('Navigation state error:', error);
-          }
-        }
-      },
-      onPanResponderTerminate: () => {
-        // Reset animations if gesture is interrupted
-        setIsGesturing(false);
-        Animated.parallel([
-          Animated.spring(scaleAnimation, {
-            toValue: 1,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-          Animated.spring(swipeAnimation, {
-            toValue: 0,
-            tension: 100,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      },
-    })
-  ).current;
+  const colors = isDarkMode ? darkColors : lightColors;
 
   return (
-    <Animated.View 
-      style={[
-        styles.swipeContainer,
-        {
-          transform: [
-            { translateX: swipeAnimation },
-            { scale: scaleAnimation }
-          ]
-        }
-      ]} 
-      {...panResponder.panHandlers}
-    >
-      {/* Swipe Visual Feedback */}
-      {isGesturing && (
-        <View style={styles.swipeIndicatorContainer} pointerEvents="none">
-          <Animated.View 
-            style={[
-              styles.swipeIndicator,
-              {
-                opacity: swipeAnimation.interpolate({
-                  inputRange: [-100, 0, 100],
-                  outputRange: [0.3, 0, 0.3],
-                  extrapolate: 'clamp'
-                })
-              }
-            ]}
-          />
-        </View>
-      )}
-      
-      <NavigationContainer ref={navigationRef}>
-        <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
-        <ModalContext.Provider value={{ openMotivationModal: () => setShowMotivationModal(true) }}>
-      <Tab.Navigator
-        id={undefined}
-        screenOptions={({route}) => ({
-          headerShown: false,
-          tabBarIcon: ({color, size}) => getTabBarIcon(route, color, size),
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarStyle: {
-            backgroundColor: colors.background,
-            borderTopColor: colors.border,
-            borderTopWidth: 1,
-            height: Platform.OS === 'ios' ? 90 : 70,
-            paddingBottom: Platform.OS === 'ios' ? 25 : 15,
-            paddingTop: 10,
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '600',
-          },
-        })}
-      >
-        <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
-        <Tab.Screen name="Dersler" component={CoursesScreen} />
-        <Tab.Screen name="Ajanda" component={AgendaScreen} />
-        <Tab.Screen name="Raporlar" component={ReportsScreen} />
-        <Tab.Screen name="Ayarlar" component={SettingsScreen} />
-      </Tab.Navigator>
-      </ModalContext.Provider>
-      
-      {/* Global Motivation Settings Modal */}
-      <MotivationSettingsModal
-        visible={showMotivationModal}
-        onClose={() => setShowMotivationModal(false)}
-      />
-    </NavigationContainer>
-    </Animated.View>
+    <ThemeContext.Provider value={{ isDarkMode, toggleDarkMode, colors }}>
+      <AppContent />
+    </ThemeContext.Provider>
   );
 }
 
-export default function App() {
-  return <AppContent />;
+// App Content Component
+function AppContent() {
+  const { colors } = useTheme();
+  const [showMotivationModal, setShowMotivationModal] = useState(false);
+  const [showPushNotificationModal, setShowPushNotificationModal] = useState(false);
+  const [showDailyReminderModal, setShowDailyReminderModal] = useState(false);
+
+  const openMotivationModal = () => {
+    setShowMotivationModal(true);
+  };
+
+  return (
+    <ModalContext.Provider value={{ openMotivationModal }}>
+      <NavigationContainer>
+        <StatusBar backgroundColor={colors.primary} barStyle={colors.background === '#121212' ? "light-content" : "dark-content"} />
+        <Tab.Navigator
+          id={undefined}
+          screenOptions={({ route }) => ({
+            tabBarIcon: ({ focused, color, size }) => {
+              let iconName = '';
+              if (route.name === 'Ana Sayfa') iconName = 'home';
+              else if (route.name === 'Dersler') iconName = 'book-open-variant';
+              else if (route.name === 'Raporlar') iconName = 'chart-line';
+              else if (route.name === 'Program') iconName = 'calendar';
+              else if (route.name === 'Ayarlar') iconName = 'cog';
+              return <Icon name={iconName} size={size} color={color} />;
+            },
+            tabBarActiveTintColor: colors.primary,
+            tabBarInactiveTintColor: colors.textMuted,
+            tabBarStyle: {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              height: 60,
+              paddingBottom: 8,
+              paddingTop: 8,
+            },
+            headerShown: false,
+          })}
+        >
+          <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
+          <Tab.Screen name="Dersler" component={CoursesScreen} />
+          <Tab.Screen name="Raporlar" component={ReportsScreen} />
+          <Tab.Screen name="Program" component={AgendaScreen} />
+          <Tab.Screen name="Ayarlar" component={SettingsScreen} />
+        </Tab.Navigator>
+
+        {/* Global Modals */}
+        <MotivationSettingsModal
+          visible={showMotivationModal}
+          onClose={() => setShowMotivationModal(false)}
+        />
+        
+        <PushNotificationSettingsModal
+          visible={showPushNotificationModal}
+          onClose={() => setShowPushNotificationModal(false)}
+        />
+        
+        <DailyReminderSettingsModal
+          visible={showDailyReminderModal}
+          onClose={() => setShowDailyReminderModal(false)}
+        />
+      </NavigationContainer>
+    </ModalContext.Provider>
+  );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
