@@ -1,88 +1,35 @@
-# React Native Production# OSX
-
+# React Native Production
+# OSX
 node_modules
-
-npm-debug.log*.DS_Store
-
+npm-debug.log*
+.DS_Store
 yarn-debug.log*
+yarn-error.log*
 
-yarn-error.log*# Xcode
-
-# Android
-PLAY-STORE-GUIDE.md
-*.properties
+# Android keystore (SENSITIVE - DO NOT COMMIT)
 *.keystore
+android/keystore.properties
+!debug.keystore
 
 # Android builds
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
 
-android/app/build/*.pbxuser
-
-android/build/!default.pbxuser
-
-android/.gradle/*.mode1v3
-
-android/local.properties!default.mode1v3
-
-*.mode2v3
-
-# Release signing!default.mode2v3
-
-*.keystore*.perspectivev3
-
-!debug.keystore!default.perspectivev3
-
-android/keystore.propertiesxcuserdata
-
-*.xccheckout
-
-# iOS*.moved-aside
-
-ios/build/DerivedData
-
-ios/Pods/*.hmap
-
-*.xcworkspace*.ipa
-
-*.xcuserdata*.xcuserstate
-
+# iOS
+ios/build/
+ios/Pods/
+DerivedData/
+*.xcworkspace
+*.xcuserdata
+*.xcuserstate
 **/.xcode.env.local
 
-# OS generated
-
-.DS_Store# Android/IntelliJ
-
-Thumbs.db#
-
-build/
-
-# Logs.idea
-
-*.log.gradle
-
-local.properties
-
-# Metro*.iml
-
-.metro-health-check**.hprof
-
-.cxx/
-
-# Debug tools*.keystore
-
-flipper-rn-addons.json!debug.keystore
-
-.vscode/.kotlin/
-
-.idea/
-
-# node.js
-
-# Temporary#
-
-.tmp/node_modules/
-
-*.tmpnpm-debug.log
-yarn-error.log
+# Web files (PUBLIC - should be committed)
+# These files are intentionally NOT ignored:
+# index.html
+# privacy-policy.html
 
 # fastlane
 #

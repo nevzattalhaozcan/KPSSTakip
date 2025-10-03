@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPSS Takip - KPSS Hazırlık Takip Uygulaması</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        .hero {
+            background: linear-gradient(135deg, #2E5BFF 0%, #3B82F6 50%, #667eea 100%);
+            color: white;
+            padding: 100px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><circle cx="200" cy="200" r="3" fill="rgba(255,255,255,0.1)"/><circle cx="800" cy="300" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="300" cy="700" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="700" cy="800" r="3" fill="rgba(255,255,255,0.1)"/></svg>');
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .hero h1 {
+            font-size: 4em;
+            margin-bottom: 20px;
+            font-weight: 800;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .hero .subtitle {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+        
+        .hero .description {
+            font-size: 1.2em;
+            max-width: 600px;
+            margin: 0 auto 40px;
+            opacity: 0.9;
+        }
+        
+        .download-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+        
+        .download-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1em;
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .download-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .primary-btn {
+            background: white !important;
+            color: #2E5BFF !important;
+            border: 2px solid white !important;
+        }
+        
+        .primary-btn:hover {
+            background: #f8f9fa !important;
+            color: #2E5BFF !important;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .section {
+            padding: 80px 0;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #2E5BFF;
+            font-weight: 700;
+        }
+        
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.2em;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto 60px;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(46, 91, 255, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid #f1f5f9;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(46, 91, 255, 0.15);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #2E5BFF;
+            font-weight: 600;
+        }
+        
+        .feature-card p {
+            color: #666;
+            line-height: 1.7;
+            font-size: 1.1em;
+        }
+        
+        .stats-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            text-align: center;
+        }
+        
+        .stat-item {
+            padding: 30px;
+        }
+        
+        .stat-number {
+            font-size: 3em;
+            font-weight: 800;
+            color: #2E5BFF;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 1.1em;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .screenshot-section {
+            background: white;
+        }
+        
+        .screenshots {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+        
+        .screenshot {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(46, 91, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .screenshot:hover {
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px rgba(46, 91, 255, 0.2);
+        }
+        
+        .screenshot img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .cta-section {
+            background: linear-gradient(135deg, #2E5BFF 0%, #3B82F6 50%, #667eea 100%);
+            color: white;
+            text-align: center;
+        }
+        
+        .cta-section h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .cta-section p {
+            font-size: 1.3em;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+        
+        .footer {
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 60px 0 30px;
+            text-align: center;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        
+        .footer-section h3 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+        
+        .footer-section a {
+            color: #94a3b8;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 10px;
+            transition: color 0.3s ease;
+        }
+        
+        .footer-section a:hover {
+            color: #3B82F6;
+        }
+        
+        .footer-bottom {
+            border-top: 1px solid #334155;
+            padding-top: 30px;
+            color: #64748b;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5em;
+            }
+            
+            .hero .subtitle {
+                font-size: 1.2em;
+            }
+            
+            .download-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .section {
+                padding: 60px 0;
+            }
+            
+            .section-title {
+                font-size: 2em;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>🎯 KPSS Takip</h1>
+            <p class="subtitle">KPSS Sınavına Hazırlık için Kişisel Takip Uygulaması</p>
+            <p class="description">
+                KPSS hedeflerinize ulaşmak için ihtiyacınız olan tüm araçlar tek uygulamada. 
+                Çalışma planınızı oluşturun, ilerlemelerinizi takip edin ve başarıya ulaşın!
+            </p>
+            <div class="download-buttons">
+                <a href="#features" class="download-btn primary-btn">📱 Özellikleri Keşfet</a>
+                <a href="mailto:ozcann.talha@gmail.com" class="download-btn">📧 İletişim</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="section">
+        <div class="container">
+            <h2 class="section-title">✨ Özellikler</h2>
+            <p class="section-subtitle">
+                KPSS hazırlık sürecinizi kolaylaştıran ve motive eden güçlü özellikler
+            </p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">🎯</span>
+                    <h3>Günlük Hedefler</h3>
+                    <p>Her gün için kişiselleştirilmiş çalışma hedefleri belirleyin. Konu bazında ve soru sayısı bazında hedefler oluşturun, ilerlemelerinizi anlık takip edin.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">📊</span>
+                    <h3>İlerleme Takibi</h3>
+                    <p>Çalışma sürenizi, çözülen soru sayısını ve konu ilerlemelerinizi detaylı grafiklerle görün. Hangi konularda daha fazla çalışmanız gerektiğini keşfedin.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">📅</span>
+                    <h3>Haftalık Program</h3>
+                    <p>7 günlük çalışma programınızı oluşturun. Her gün için farklı dersler planlayın ve programınızı esnek şekilde düzenleyin.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">📈</span>
+                    <h3>Detaylı Raporlar</h3>
+                    <p>Haftalık ve aylık çalışma raporlarınızı görün. Hangi günlerde daha verimli olduğunuzu anlayın ve stratejinizi geliştirin.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">🌙</span>
+                    <h3>Koyu Tema</h3>
+                    <p>Gözlerinizi yormaması için koyu tema desteği. Gece çalışırken konforunuzu artırın ve tercih ettiğiniz temayı seçin.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">🔒</span>
+                    <h3>Gizlilik</h3>
+                    <p>Tüm verileriniz sadece cihazınızda saklanır. İnternet bağlantısı olmadan da çalışabilir, verileriniz hiçbir yerde paylaşılmaz.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="section stats-section">
+        <div class="container">
+            <h2 class="section-title">📊 Uygulama İstatistikleri</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-number">7</span>
+                    <span class="stat-label">Ana Ders Kategorisi</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">50+</span>
+                    <span class="stat-label">Takip Edilebilir Konu</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">∞</span>
+                    <span class="stat-label">Sınırsız Kayıt</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">Ücretsiz</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title">🚀 Nasıl Çalışır?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">1️⃣</span>
+                    <h3>Hedef Belirle</h3>
+                    <p>Günlük çalışma hedeflerinizi belirleyin. Hangi konularda ne kadar çalışacağınızı planlayın.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">2️⃣</span>
+                    <h3>Çalışmanı Kaydet</h3>
+                    <p>Çalıştığınız konuları, süreleri ve çözülen soruları tek dokunuşla kaydedin.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <span class="feature-icon">3️⃣</span>
+                    <h3>İlerlemeni Gör</h3>
+                    <p>Günlük, haftalık ve aylık ilerlemelerinizi detaylı grafiklerle takip edin.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="section cta-section">
+        <div class="container">
+            <h2>🏆 KPSS Başarında Fark Yarat!</h2>
+            <p>Sistematik çalışma ve doğru takip ile KPSS hedefinize ulaşın</p>
+            <div class="download-buttons">
+                <a href="mailto:ozcann.talha@gmail.com?subject=KPSS%20Takip%20Uygulaması" class="download-btn primary-btn">
+                    📧 Uygulama Hakkında Bilgi Al
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>📱 KPSS Takip</h3>
+                    <p>KPSS sınavına hazırlananlar için geliştirilmiş kişisel takip uygulaması. Hedeflerinize sistematik bir şekilde ulaşın.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>🔗 Bağlantılar</h3>
+                    <a href="privacy-policy.html">Gizlilik Politikası</a>
+                    <a href="mailto:ozcann.talha@gmail.com">İletişim</a>
+                    <a href="mailto:ozcann.talha@gmail.com?subject=Destek">Destek</a>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>ℹ️ Bilgi</h3>
+                    <p><strong>Sürüm:</strong> 1.0.0</p>
+                    <p><strong>Platform:</strong> Android</p>
+                    <p><strong>Geliştirici:</strong> Nevzat Talha Özcan</p>
+                    <p><strong>Güncelleme:</strong> Ekim 2025</p>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 KPSS Takip. Tüm hakları saklıdır.</p>
+                <p>Bu uygulama Türkiye'de geliştirilmiştir ve KVKK'ya uyumludur.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

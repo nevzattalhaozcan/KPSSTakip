@@ -1,0 +1,1 @@
+/Users/talha/Documents/Projects/dev/react/kpss-takip/KPSSTakip/android/app/build/intermediates/cxx/RelWithDebInfo/433m2c6m/obj/arm64-v8a
