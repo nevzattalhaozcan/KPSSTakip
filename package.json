@@ -1,6 +1,6 @@
 {
-  "name": "kpss-takip",
-  "version": "1.0.2",
+  "name": "kpss-calisma-asistani",
+  "version": "1.0.4",
   "private": true,
   "scripts": {
     "android": "react-native run-android",

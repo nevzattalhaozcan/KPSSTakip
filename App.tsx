@@ -29,6 +29,7 @@ import { motivationalPushService } from './src/utils/pushNotificationService';
 import { PushNotificationSettingsModal } from './src/utils/pushNotificationSettingsModal';
 import { dailyReminderService } from './src/utils/dailyReminderService';
 import { DailyReminderSettingsModal } from './src/utils/dailyReminderSettingsModal';
+import { DeveloperInfoModal } from './src/components/DeveloperInfoModal';
 
 // Theme Context
 interface ThemeContextType {
@@ -5092,6 +5093,7 @@ function SettingsScreen() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showPushNotificationModal, setShowPushNotificationModal] = useState(false);
   const [showDailyReminderModal, setShowDailyReminderModal] = useState(false);
+  const [showDeveloperModal, setShowDeveloperModal] = useState(false);
   const [feedbackType, setFeedbackType] = useState('suggestion'); // suggestion, bug, compliment
   const [feedbackText, setFeedbackText] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -5385,7 +5387,10 @@ function SettingsScreen() {
 
             <View style={styles.settingsDivider} />
 
-            <View style={styles.settingsItem}>
+            <TouchableOpacity 
+              onPress={() => setShowDeveloperModal(true)}
+              style={styles.settingsItem}
+            >
               <View style={styles.settingsItemLeft}>
                 <View style={[styles.settingsIconContainer, { backgroundColor: colors.success + '15' }]}>
                   <Icon name="account-group" size={24} color={colors.success} />
@@ -5393,11 +5398,14 @@ function SettingsScreen() {
                 <View style={styles.settingsItemInfo}>
                   <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Geliştirici</Text>
                   <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
-                    nevzattalhaozcan
+                    nevzattalhaozcan - Hakkımda bilgi al
                   </Text>
                 </View>
               </View>
-            </View>
+              <View style={styles.settingsItemRight}>
+                <Icon name="chevron-right" size={20} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.settingsDivider} />
 
@@ -5603,6 +5611,12 @@ function SettingsScreen() {
       <DailyReminderSettingsModal
         visible={showDailyReminderModal}
         onClose={() => setShowDailyReminderModal(false)}
+      />
+
+      {/* Developer Info Modal */}
+      <DeveloperInfoModal
+        visible={showDeveloperModal}
+        onClose={() => setShowDeveloperModal(false)}
       />
     </View>
   );
