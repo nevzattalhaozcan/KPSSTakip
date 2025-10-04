@@ -91,12 +91,13 @@ class DailyReminderService {
       // Create notification channel for Android
       this.createNotificationChannel();
       
-      // Load and apply configuration
+      // Load configuration but don't auto-schedule reminders
+      // User can manually enable reminders from settings
       const config = await this.getConfig();
-      await this.scheduleReminders(config);
+      console.log('Daily Reminder Service config loaded:', config);
       
       this.isInitialized = true;
-      console.log('Daily Reminder Service initialized successfully');
+      console.log('Daily Reminder Service initialized successfully (auto-scheduling disabled)');
     } catch (error) {
       console.error('Error initializing Daily Reminder Service:', error);
       throw error;
@@ -248,7 +249,6 @@ class DailyReminderService {
         soundName: config.soundName,
         vibrate: config.vibrate,
         importance: config.importance,
-        allowWhileIdle: true,
         ignoreInForeground: false,
         invokeApp: true,
         userInfo: {
@@ -291,7 +291,6 @@ class DailyReminderService {
         soundName: config.soundName,
         vibrate: config.vibrate,
         importance: config.importance,
-        allowWhileIdle: true,
         ignoreInForeground: false,
         invokeApp: true,
         userInfo: {

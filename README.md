@@ -1,10 +1,10 @@
-# 🎯 KPSS Takip
+# 🎯 KPSS Çalışma Asistanı
 
 KPSS sınavına hazırlananlar için geliştirilmiş kişisel takip uygulaması.
 
 ## 📱 Uygulama Hakkında
 
-KPSS Takip, KPSS sınavına hazırlanan adayların çalışma sürecini sistematik bir şekilde takip etmelerine yardımcı olan mobil uygulamadır.
+KPSS Çalışma Asistanı, KPSS sınavına hazırlanan adayların çalışma sürecini sistematik bir şekilde takip etmelerine yardımcı olan mobil uygulamadır.
 
 ### ✨ Özellikler
 
@@ -17,7 +17,7 @@ KPSS Takip, KPSS sınavına hazırlanan adayların çalışma sürecini sistemat
 
 ## 🌐 Web Sayfaları
 
-- **Ana Sayfa**: [KPSS Takip Tanıtım](https://nevzattalhaozcan.github.io/KPSSTakip/)
+- **Ana Sayfa**: [KPSS Çalışma Asistanı Tanıtım](https://nevzattalhaozcan.github.io/KPSSTakip/)
 - **Gizlilik Politikası**: [Privacy Policy](https://nevzattalhaozcan.github.io/KPSSTakip/privacy-policy.html)
 
 ## 🛠️ Geliştirme

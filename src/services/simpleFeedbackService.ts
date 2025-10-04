@@ -1,4 +1,4 @@
-// Clean feedback service for KPSS Takip
+// Clean feedback service for KPSS Çalışma Asistanı app
 export interface FeedbackData {
   feedbackType: 'suggestion' | 'bug' | 'general';
   feedbackText: string;
@@ -15,9 +15,9 @@ export class FeedbackService {
       
       const payload = {
         email: 'ozcann.talha@gmail.com',
-        subject: `KPSS Takip Feedback - ${feedbackData.feedbackType === 'suggestion' ? 'Öneri' : feedbackData.feedbackType === 'bug' ? 'Hata Bildirimi' : 'Genel'}`,
+        subject: `KPSS Çalışma Asistanı Feedback - ${feedbackData.feedbackType === 'suggestion' ? 'Öneri' : feedbackData.feedbackType === 'bug' ? 'Hata Bildirimi' : 'Genel'}`,
         message: `
-📱 KPSS Takip App Feedback
+📱 KPSS Çalışma Asistanı App Feedback
 
 Geri Bildirim Türü: ${feedbackData.feedbackType === 'suggestion' ? 'Öneri' : feedbackData.feedbackType === 'bug' ? 'Hata Bildirimi' : 'Genel'}
 
@@ -30,7 +30,7 @@ Cihaz Bilgisi: ${feedbackData.deviceInfo || 'Bilinmiyor'}
 Uygulama Sürümü: ${feedbackData.appVersion || '1.0.0'}
 Tarih: ${new Date().toLocaleString('tr-TR')}
 
-Bu geri bildirim KPSS Takip mobil uygulamasından gönderildi.
+Bu geri bildirim KPSS Çalışma Asistanı mobil uygulamasından gönderildi.
         `,
         _replyto: feedbackData.userEmail || 'noreply@kpsstakip.com',
       };
@@ -60,7 +60,7 @@ Bu geri bildirim KPSS Takip mobil uygulamasından gönderildi.
         ...feedbackData,
         timestamp: new Date().toISOString(),
         recipient: 'ozcann.talha@gmail.com',
-        app: 'KPSS Takip',
+        app: 'KPSS Çalışma Asistanı',
         platform: 'React Native',
       };
 

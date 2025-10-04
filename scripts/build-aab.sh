@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# KPSS Takip - Android App Bundle (AAB) Build Script
+# KPSS Çalışma Asistanı - Android App Bundle (AAB) Build Script
 # This script builds your app for Play Store submission
 
-echo "🚀 Building KPSS Takip for Play Store submission..."
+echo "🚀 Building KPSS Çalışma Asistanı for Play Store submission..."
 echo "=================================================="
 
 # Colors for output

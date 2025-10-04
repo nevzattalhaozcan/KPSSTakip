@@ -1004,7 +1004,7 @@ function HomeScreen() {
           <View style={styles.headerContent}>
             <View style={styles.headerTextContainer}>
               <Text style={styles.modernHeaderTitle}>
-                KPSS Takip
+                KPSS Çalışma Asistanı
               </Text>
             </View>
           </View>
@@ -5098,8 +5098,125 @@ function SettingsScreen() {
   const [feedbackText, setFeedbackText] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+  const [showWhatsNewModal, setShowWhatsNewModal] = useState(false);
   
   const { openMotivationModal } = useModal();
+
+  // Check for app updates
+  const checkForUpdates = async () => {
+    try {
+      // Show loading alert
+      Alert.alert(
+        '🔄 Güncelleme Kontrolü',
+        'En son sürüm kontrol ediliyor...',
+        [{ text: 'Tamam', style: 'default' }]
+      );
+
+      const currentVersion = '1.0.7';
+      
+      try {
+        // Try to fetch latest version from GitHub releases
+        const response = await fetch('https://api.github.com/repos/nevzattalhaozcan/KPSSTakip/releases/latest', {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        });
+        
+        if (response.ok) {
+          const latestRelease = await response.json();
+          const latestVersion = latestRelease.tag_name.replace('v', ''); // Remove 'v' prefix if exists
+          
+          if (compareVersions(latestVersion, currentVersion) > 0) {
+            // New version available
+            Alert.alert(
+              '🆕 Yeni Sürüm Mevcut!',
+              `Mevcut sürüm: ${currentVersion}\nYeni sürüm: ${latestVersion}\n\nGüncellemek için Play Store'a yönlendirilmek ister misiniz?`,
+              [
+                { text: 'Daha Sonra', style: 'cancel' },
+                { 
+                  text: 'Güncelle', 
+                  style: 'default',
+                  onPress: () => openPlayStore()
+                }
+              ]
+            );
+          } else {
+            // App is up to date
+            Alert.alert(
+              '✅ Güncel Sürüm',
+              `Uygulamanız güncel! (v${currentVersion})`,
+              [{ text: 'Tamam', style: 'default' }]
+            );
+          }
+        } else {
+          throw new Error('GitHub API request failed');
+        }
+      } catch (apiError) {
+        console.log('GitHub API error, falling back to Play Store:', apiError);
+        // Fallback: Just open Play Store
+        Alert.alert(
+          'ℹ️ Güncelleme Kontrolü',
+          `Mevcut sürüm: ${currentVersion}\n\nPlay Store'da güncellemeleri kontrol etmek ister misiniz?`,
+          [
+            { text: 'İptal', style: 'cancel' },
+            { 
+              text: 'Play Store\'a Git', 
+              style: 'default',
+              onPress: () => openPlayStore()
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Update check error:', error);
+      Alert.alert(
+        '❌ Hata',
+        'Güncelleme kontrolü sırasında bir hata oluştu.',
+        [{ text: 'Tamam', style: 'default' }]
+      );
+    }
+  };
+
+  // Helper function to compare version strings
+  const compareVersions = (version1: string, version2: string): number => {
+    const v1parts = version1.split('.').map(Number);
+    const v2parts = version2.split('.').map(Number);
+    
+    const maxLength = Math.max(v1parts.length, v2parts.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+      const v1part = v1parts[i] || 0;
+      const v2part = v2parts[i] || 0;
+      
+      if (v1part > v2part) return 1;
+      if (v1part < v2part) return -1;
+    }
+    
+    return 0;
+  };
+
+  // Helper function to open Play Store
+  const openPlayStore = async () => {
+    const playStoreUrl = 'market://details?id=com.kpsstakip';
+    const playStoreWebUrl = 'https://play.google.com/store/apps/details?id=com.kpsstakip';
+
+    try {
+      const canOpen = await Linking.canOpenURL(playStoreUrl);
+      if (canOpen) {
+        await Linking.openURL(playStoreUrl);
+      } else {
+        await Linking.openURL(playStoreWebUrl);
+      }
+    } catch (error) {
+      console.error('Error opening Play Store:', error);
+      Alert.alert(
+        'ℹ️ Bilgi',
+        'Play Store otomatik olarak açılamadı. Lütfen manuel olarak "KPSS Çalışma Asistanı" uygulamasını arayın.',
+        [{ text: 'Tamam', style: 'default' }]
+      );
+    }
+  };
 
   const clearAllData = () => {
     Alert.alert(
@@ -5122,6 +5239,92 @@ function SettingsScreen() {
       ]
     );
   };
+
+  // Version history data
+  const versionHistory = [
+    {
+      version: '1.0.7',
+      date: 'Ekim 2025',
+      isLatest: true,
+      changes: [
+        '🔄 Otomatik güncelleme kontrolü sistemi eklendi',
+        '🎉 Yenilikler sayfası ve detaylı sürüm geçmişi eklendi',
+        '👨‍💻 Geliştirici bilgileri ve iletişim sayfası eklendi',
+        '☕ İsteğe bağlı geliştirici destek seçeneği eklendi',
+        '⚡ Performans iyileştirmeleri ve hata düzeltmeleri'
+      ]
+    },
+    {
+      version: '1.0.6',
+      date: 'Ekim 2025',
+      changes: [
+        '🔧 Temel güncelleme altyapısı hazırlandı',
+        '🎨 Kullanıcı arayüzü iyileştirmeleri',
+        '🐛 Çeşitli hata düzeltmeleri'
+      ]
+    },
+    {
+      version: '1.0.5',
+      date: 'Eylül 2025',
+      changes: [
+        '✅ Google Play Store politika uyumluluğu sağlandı',
+        '🔐 Android izin yönetimi iyileştirildi',
+        '⏰ Bildirim zamanlayıcı izinleri düzenlendi',
+        '🔧 Sistem stabilitesi artırıldı'
+      ]
+    },
+    {
+      version: '1.0.4',
+      date: 'Eylül 2025',
+      changes: [
+        '📝 Uygulama adı "KPSS Çalışma Asistanı" olarak güncellendi',
+        '👨‍💻 Geliştirici bilgileri ve iletişim sayfası eklendi',
+        '🌐 GitHub ve LinkedIn bağlantıları eklendi',
+        '� E-posta iletişim desteği eklendi'
+      ]
+    },
+    {
+      version: '1.0.3',
+      date: 'Eylül 2025',
+      changes: [
+        '📦 Android App Bundle (AAB) formatı desteği eklendi',
+        '🏪 Google Play Store optimizasyonları yapıldı',
+        '🔒 Uygulama imzalama sistemi güncellendi',
+        '📋 Build dokümantasyonu oluşturuldu'
+      ]
+    },
+    {
+      version: '1.0.2',
+      date: 'Ağustos 2025',
+      changes: [
+        '🔔 Push bildirim altyapısı eklendi',
+        '⏰ Bildirim ayarları sayfası eklendi',
+        '� Kullanıcı arayüzü iyileştirmeleri',
+        '⚙️ Ayarlar sayfası düzenlendi'
+      ]
+    },
+    {
+      version: '1.0.1',
+      date: 'Ağustos 2025',
+      changes: [
+        '✨ Profesyonel splash screen eklendi',
+        '🎨 Uygulama başlangıç deneyimi iyileştirildi',
+        '⚡ Uygulama başlatma hızı artırıldı',
+        '🔧 Temel performans optimizasyonları'
+      ]
+    },
+    {
+      version: '1.0.0',
+      date: 'Temmuz 2025',
+      changes: [
+        '🎉 KPSS Çalışma Asistanı ilk sürümü yayınlandı',
+        '📚 KPSS konularını takip etme sistemi',
+        '📅 Haftalık ders programı yönetimi',
+        '📊 Çalışma ilerlemesi ve istatistikler',
+        '🎯 Temel çalışma takip özellikleri'
+      ]
+    }
+  ];
 
   const handleThemeToggle = () => {
     toggleDarkMode();
@@ -5179,7 +5382,7 @@ function SettingsScreen() {
         );
       } else {
         // Final fallback to email client
-        const subject = `KPSS Takip - ${feedbackType === 'suggestion' ? 'Öneri' : feedbackType === 'bug' ? 'Hata Bildirimi' : 'İletişim'}`;
+        const subject = `KPSS Çalışma Asistanı - ${feedbackType === 'suggestion' ? 'Öneri' : feedbackType === 'bug' ? 'Hata Bildirimi' : 'İletişim'}`;
         const body = `Geri Bildirim Türü: ${feedbackType === 'suggestion' ? 'Öneri' : feedbackType === 'bug' ? 'Hata Bildirimi' : 'Genel'}\n\nGeri Bildirim:\n${feedbackText}\n\nCihaz Bilgisi: ${Platform.OS} ${Platform.Version}\nUygulama Sürümü: 1.0.0\nZaman: ${new Date().toLocaleString('tr-TR')}\n\n${userEmail ? `İletişim: ${userEmail}` : ''}`;
         
         const emailUrl = `mailto:ozcann.talha@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -5368,7 +5571,11 @@ function SettingsScreen() {
         <View style={styles.settingsSection}>
           <Text style={[styles.settingsSectionTitle, { color: colors.text }]}>ℹ️ Uygulama Bilgileri</Text>
           <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
-            <View style={styles.settingsItem}>
+            <TouchableOpacity 
+              style={styles.settingsItem}
+              onPress={() => checkForUpdates()}
+              activeOpacity={0.7}
+            >
               <View style={styles.settingsItemLeft}>
                 <View style={[styles.settingsIconContainer, { backgroundColor: colors.info + '15' }]}>
                   <Icon name="information" size={24} color={colors.info} />
@@ -5376,14 +5583,15 @@ function SettingsScreen() {
                 <View style={styles.settingsItemInfo}>
                   <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Sürüm</Text>
                   <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
-                    Uygulama sürüm bilgisi
+                    {isCheckingUpdates ? 'Güncelleme kontrol ediliyor...' : 'Güncelleme kontrolü için dokunun'}
                   </Text>
                 </View>
               </View>
               <View style={styles.settingsItemRight}>
-                <Text style={[styles.settingsValue, { color: colors.text }]}>1.0.0</Text>
+                <Text style={[styles.settingsValue, { color: colors.text }]}>1.0.7</Text>
+                <Icon name="chevron-right" size={16} color={colors.textMuted} />
               </View>
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.settingsDivider} />
 
@@ -5409,7 +5617,11 @@ function SettingsScreen() {
 
             <View style={styles.settingsDivider} />
 
-            <View style={styles.settingsItem}>
+            <TouchableOpacity 
+              style={styles.settingsItem}
+              onPress={() => setShowWhatsNewModal(true)}
+              activeOpacity={0.7}
+            >
               <View style={styles.settingsItemLeft}>
                 <View style={[styles.settingsIconContainer, { backgroundColor: colors.warning + '15' }]}>
                   <Icon name="calendar-today" size={24} color={colors.warning} />
@@ -5417,11 +5629,15 @@ function SettingsScreen() {
                 <View style={styles.settingsItemInfo}>
                   <Text style={[styles.settingsItemTitle, { color: colors.text }]}>Son Güncelleme</Text>
                   <Text style={[styles.settingsItemDesc, { color: colors.textLight }]}>
-                    Ekim 2025
+                    Yenilikler için dokunun
                   </Text>
                 </View>
               </View>
-            </View>
+              <View style={styles.settingsItemRight}>
+                <Text style={[styles.settingsValue, { color: colors.text }]}>Ekim 2025</Text>
+                <Icon name="chevron-right" size={16} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -5613,6 +5829,79 @@ function SettingsScreen() {
         onClose={() => setShowDailyReminderModal(false)}
       />
 
+      {/* What's New Modal */}
+      <Modal
+        visible={showWhatsNewModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowWhatsNewModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.whatsNewModalContainer, { backgroundColor: colors.card }]}>
+            <View style={[styles.whatsNewHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.whatsNewTitle, { color: colors.text }]}>🎉 Yenilikler</Text>
+              <TouchableOpacity
+                onPress={() => setShowWhatsNewModal(false)}
+                style={styles.modalCloseButton}>
+                <Icon name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              style={styles.whatsNewContent}
+              contentContainerStyle={styles.whatsNewScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {versionHistory.map((version, index) => (
+                <View key={version.version} style={[
+                  styles.versionContainer, 
+                  { 
+                    backgroundColor: version.isLatest ? colors.primary + '10' : colors.background + '80',
+                    borderColor: version.isLatest ? colors.primary + '30' : colors.border
+                  }
+                ]}>
+                  <View style={styles.versionHeader}>
+                    <View style={styles.versionInfo}>
+                      <Text style={[styles.versionNumber, { color: colors.text }]}>
+                        v{version.version}
+                        {version.isLatest && (
+                          <Text style={[styles.latestBadge, { color: colors.primary }]}> • GÜNCEL</Text>
+                        )}
+                      </Text>
+                      <Text style={[styles.versionDate, { color: colors.textLight }]}>
+                        {version.date}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.changesContainer}>
+                    {version.changes.map((change, changeIndex) => (
+                      <View key={changeIndex} style={styles.changeItem}>
+                        <View style={[styles.changeBullet, { backgroundColor: version.isLatest ? colors.primary : colors.textMuted }]} />
+                        <Text style={[styles.changeText, { color: colors.text }]}>
+                          {change}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  
+                  {index < versionHistory.length - 1 && (
+                    <View style={[styles.versionDivider, { backgroundColor: colors.border }]} />
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+            
+            <View style={[styles.whatsNewFooter, { borderTopColor: colors.border }]}>
+              <TouchableOpacity
+                style={[styles.whatsNewButton, { backgroundColor: colors.primary }]}
+                onPress={() => setShowWhatsNewModal(false)}>
+                <Text style={styles.whatsNewButtonText}>Tamam</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Developer Info Modal */}
       <DeveloperInfoModal
         visible={showDeveloperModal}
@@ -5763,6 +6052,8 @@ function AppContent() {
     </ModalContext.Provider>
   );
 }
+
+const { width } = Dimensions.get('window');
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
   container: {
@@ -8215,5 +8506,111 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  // What's New Modal Styles
+  whatsNewModalContainer: {
+    width: width * 0.9,
+    maxHeight: '85%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  whatsNewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+  },
+  whatsNewTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  whatsNewContent: {
+    maxHeight: '90%',
+  },
+  whatsNewScrollContent: {
+    padding: 18,
+    paddingBottom: 8,
+  },
+  whatsNewFooter: {
+    padding: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+  },
+  whatsNewButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+  },
+  whatsNewButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  versionContainer: {
+    marginBottom: 18,
+    padding: 18,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  versionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  versionInfo: {
+    flex: 1,
+  },
+  versionNumber: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  latestBadge: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  versionDate: {
+    fontSize: 16,
+    fontWeight: '500',
+    opacity: 0.7,
+  },
+  changesContainer: {
+    paddingLeft: 6,
+  },
+  changeItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingRight: 6,
+  },
+  changeBullet: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginTop: 8,
+    marginRight: 14,
+    flexShrink: 0,
+  },
+  changeText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400',
+  },
+  versionDivider: {
+    height: 1,
+    marginTop: 20,
+    marginBottom: 4,
+    opacity: 0.3,
   },
 });

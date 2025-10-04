@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Preparing KPSS Takip for Play Store Release"
+echo "🚀 Preparing KPSS Çalışma Asistanı for Play Store Release"
 
 # Clean previous builds
 echo "🧹 Cleaning previous builds..."

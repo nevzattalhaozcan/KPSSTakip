@@ -34,7 +34,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>Bu uygulama çalışma hatırlatmaları ve KPSS takip bildirimleri göndermek için bildirim izni gerektirir.</string>
+	<string>Bu uygulama çalışma hatırlatmaları ve KPSS Çalışma Asistanı bildirimleri göndermek için bildirim izni gerektirir.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

@@ -1,4 +1,4 @@
-# Android App Bundle (AAB) Guide for KPSS Takip
+# Android App Bundle (AAB) Guide for KPSS Çalışma Asistanı
 
 ## Why AAB instead of APK?
 

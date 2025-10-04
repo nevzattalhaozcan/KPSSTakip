@@ -40,6 +40,22 @@ class MotivationalPushService {
     try {
       if (this.isInitialized) return true;
 
+      // Minimal initialization - just create notification channel
+      // Don't configure push notifications during startup to avoid exact alarm issues
+      this.createNotificationChannel();
+
+      this.isInitialized = true;
+      console.log('Motivational push service initialized (minimal mode)');
+      return true;
+    } catch (error) {
+      console.error('Error initializing push service:', error);
+      return false;
+    }
+  }
+
+  // Separate method to fully configure push notifications when user enables them
+  async configurePushNotifications(): Promise<boolean> {
+    try {
       // Configure push notifications
       PushNotification.configure({
         // Called when token is generated (iOS and Android)
@@ -71,14 +87,10 @@ class MotivationalPushService {
         await this.requestAndroidPermissions();
       }
 
-      // Create notification channel for Android
-      this.createNotificationChannel();
-
-      this.isInitialized = true;
-      console.log('Motivational push service initialized');
+      console.log('Push notifications fully configured');
       return true;
     } catch (error) {
-      console.error('Error initializing push service:', error);
+      console.error('Error configuring push notifications:', error);
       return false;
     }
   }
@@ -88,18 +100,24 @@ class MotivationalPushService {
     try {
       if (Platform.OS !== 'android') return true;
 
-      const granted = await PermissionsAndroid.request(
+      // First request POST_NOTIFICATIONS permission
+      const notificationGranted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
         {
           title: 'Bildirim İzni',
-          message: 'KPSS Takip uygulaması motivasyon mesajları göndermek için bildirim izni istiyor.',
+          message: 'KPSS Çalışma Asistanı motivasyon mesajları göndermek için bildirim izni istiyor.',
           buttonNeutral: 'Daha Sonra',
           buttonNegative: 'İptal',
           buttonPositive: 'İzin Ver',
         }
       );
 
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
+      if (notificationGranted !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Notification permission denied');
+        return false;
+      }
+
+      return true;
     } catch (error) {
       console.error('Error requesting Android permissions:', error);
       return false;
@@ -192,27 +210,31 @@ class MotivationalPushService {
 
         const randomMessage = filteredMessages[Math.floor(Math.random() * filteredMessages.length)];
 
-        // Schedule the notification
-        PushNotification.localNotificationSchedule({
-          id: `motivation-${i}`,
-          channelId: 'kpss-motivation',
-          title: config.title,
-          message: randomMessage.message,
-          date: scheduledDate,
-          soundName: config.soundName || 'default',
-          playSound: true,
-          vibrate: true,
-          vibration: 300,
-          importance: config.importance,
-          priority: 'high',
-          allowWhileIdle: true,
-          ignoreInForeground: false,
-          userInfo: {
-            type: 'motivation',
-            category: randomMessage.category,
-            messageId: randomMessage.id,
-          },
-        });
+        // Schedule the notification with appropriate settings
+        try {
+          PushNotification.localNotificationSchedule({
+            id: `motivation-${i}`,
+            channelId: 'kpss-motivation',
+            title: config.title,
+            message: randomMessage.message,
+            date: scheduledDate,
+            soundName: config.soundName || 'default',
+            playSound: true,
+            vibrate: true,
+            vibration: 300,
+            importance: config.importance,
+            priority: 'high',
+            ignoreInForeground: false,
+            userInfo: {
+              type: 'motivation',
+              category: randomMessage.category,
+              messageId: randomMessage.id,
+            },
+          });
+        } catch (notificationError) {
+          console.error(`Error scheduling notification ${i}:`, notificationError);
+          // Continue with next notification even if one fails
+        }
       }
 
       // Save last scheduled time
@@ -223,6 +245,7 @@ class MotivationalPushService {
     }
   }
 
+  // Check if app can schedule exact alarms
   // Schedule weekly motivational notifications
   async scheduleWeeklyNotifications(): Promise<void> {
     try {
